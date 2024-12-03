@@ -220,7 +220,27 @@ export function generateCashFlowProjections(
         revenue: totalRevenue,
         expenses: totalExpenses,
         netCashFlow,
-        cumulativeCashFlow
+        cumulativeCashFlow,
+        currentAssets: 0,
+        currentLiabilities: 0,
+        inventory: 0,
+        costOfGoodsSold: 0,
+        totalExpenses: totalExpenses,
+        totalAssets: 0,
+        shareholderEquity: 0,
+        beginningInventory: 0,
+        endingInventory: 0,
+        beginningReceivables: 0,
+        endingReceivables: 0,
+        totalLiabilities: 0,
+        ebit: 0,
+        interestExpense: 0,
+        operatingCashFlow: netCashFlow,
+        ebitda: 0,
+        stockPrice: 0,
+        netIncome: netCashFlow,
+        outstandingShares: 0,
+        operatingIncome: 0
       })
     })
   }
