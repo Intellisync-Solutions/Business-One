@@ -286,17 +286,21 @@ export function BusinessValuationCalculator() {
           <Card className="p-6">
             <h3 className="text-xl font-semibold mb-4">Valuation Summary</h3>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-2">
-                <span>Suggested Value Range:</span>
-                <span className="font-semibold">
-                  ${Math.min(valuations.assetBased, valuations.market, valuations.earnings, valuations.dcf).toFixed(2)} - 
-                  ${Math.max(valuations.assetBased, valuations.market, valuations.earnings, valuations.dcf).toFixed(2)}
-                </span>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-secondary rounded-lg">
+                  <span className="text-sm font-medium">Suggested Value Range:</span>
+                  <div className="text-xl font-bold mt-1">
+                    ${Math.min(valuations.assetBased, valuations.market, valuations.earnings, valuations.dcf).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} - 
+                    ${Math.max(valuations.assetBased, valuations.market, valuations.earnings, valuations.dcf).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
                 
-                <span>Average Valuation:</span>
-                <span className="font-semibold">
-                  ${((valuations.assetBased + valuations.market + valuations.earnings + valuations.dcf) / 4).toFixed(2)}
-                </span>
+                <div className="p-4 bg-secondary rounded-lg">
+                  <span className="text-sm font-medium">Average Valuation:</span>
+                  <div className="text-xl font-bold mt-1">
+                    ${((valuations.assetBased + valuations.market + valuations.earnings + valuations.dcf) / 4).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
               </div>
             </div>
           </Card>
@@ -305,19 +309,33 @@ export function BusinessValuationCalculator() {
         <TabsContent value="details">
           <Card className="p-6">
             <h3 className="text-xl font-semibold mb-4">Detailed Valuation Results</h3>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-2">
-                <span>Asset-Based Valuation:</span>
-                <span className="font-semibold">${valuations.assetBased.toFixed(2)}</span>
-                
-                <span>Market Multiple Valuation:</span>
-                <span className="font-semibold">${valuations.market.toFixed(2)}</span>
-                
-                <span>Earnings-Based Valuation:</span>
-                <span className="font-semibold">${valuations.earnings.toFixed(2)}</span>
-                
-                <span>DCF Valuation:</span>
-                <span className="font-semibold">${valuations.dcf.toFixed(2)}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 bg-secondary rounded-lg">
+                <span className="text-sm font-medium">Asset-Based Valuation</span>
+                <div className="text-lg font-bold mt-1">
+                  ${valuations.assetBased.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
+              
+              <div className="p-4 bg-secondary rounded-lg">
+                <span className="text-sm font-medium">Market Multiple Valuation</span>
+                <div className="text-lg font-bold mt-1">
+                  ${valuations.market.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
+              
+              <div className="p-4 bg-secondary rounded-lg">
+                <span className="text-sm font-medium">Earnings-Based Valuation</span>
+                <div className="text-lg font-bold mt-1">
+                  ${valuations.earnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
+              
+              <div className="p-4 bg-secondary rounded-lg">
+                <span className="text-sm font-medium">DCF Valuation</span>
+                <div className="text-lg font-bold mt-1">
+                  ${valuations.dcf.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
               </div>
             </div>
           </Card>
@@ -368,26 +386,40 @@ export function BusinessValuationCalculator() {
             <div className="space-y-4">
               <div className="p-4 bg-secondary rounded-lg">
                 <h4 className="font-semibold mb-2">Valuation Analysis</h4>
-                <p className="text-sm text-muted-foreground">
-                  Based on the multiple valuation methods, we recommend considering a value range of 
-                  ${Math.min(valuations.assetBased, valuations.market, valuations.earnings, valuations.dcf).toFixed(2)} to 
-                  ${Math.max(valuations.assetBased, valuations.market, valuations.earnings, valuations.dcf).toFixed(2)}.
+                <p className="text-sm">
+                  Based on the multiple valuation methods, we recommend considering a value range of:
                 </p>
+                <div className="text-lg font-bold mt-2">
+                  ${Math.min(valuations.assetBased, valuations.market, valuations.earnings, valuations.dcf).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} to 
+                  ${Math.max(valuations.assetBased, valuations.market, valuations.earnings, valuations.dcf).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
               </div>
               
               <div className="p-4 bg-secondary rounded-lg">
                 <h4 className="font-semibold mb-2">Key Value Drivers</h4>
-                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
-                  <li>Strong cash flow generation: ${metrics.cashFlow.toFixed(2)} annually</li>
-                  <li>Projected growth rate: {metrics.growthRate}%</li>
-                  <li>Net asset value: ${(metrics.assets - metrics.liabilities).toFixed(2)}</li>
-                  <li>Annual revenue: ${metrics.revenue.toFixed(2)}</li>
-                </ul>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                  <div>
+                    <span className="text-sm">Annual Cash Flow</span>
+                    <div className="text-lg font-bold">${metrics.cashFlow.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                  </div>
+                  <div>
+                    <span className="text-sm">Growth Rate</span>
+                    <div className="text-lg font-bold">{metrics.growthRate}%</div>
+                  </div>
+                  <div>
+                    <span className="text-sm">Net Asset Value</span>
+                    <div className="text-lg font-bold">${(metrics.assets - metrics.liabilities).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                  </div>
+                  <div>
+                    <span className="text-sm">Annual Revenue</span>
+                    <div className="text-lg font-bold">${metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                  </div>
+                </div>
               </div>
               
               <div className="p-4 bg-secondary rounded-lg">
                 <h4 className="font-semibold mb-2">Considerations</h4>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm">
                   The final valuation should consider industry conditions, market sentiment, and company-specific factors.
                   Consider seeking professional advice for a more detailed analysis.
                 </p>

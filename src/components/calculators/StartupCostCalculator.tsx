@@ -138,26 +138,44 @@ export function StartupCostCalculator() {
         <TabsContent value="summary">
           <Card className="p-6">
             <h3 className="text-xl font-semibold mb-4">Startup Cost Summary</h3>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-2">
-                <span>One-Time Costs:</span>
-                <span className="font-semibold">${totals.oneTime.toFixed(2)}</span>
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-secondary rounded-lg">
+                  <span className="text-sm font-medium">One-Time Costs</span>
+                  <div className="text-lg font-bold mt-1">
+                    ${totals.oneTime.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
                 
-                <span>Monthly Costs (6 months):</span>
-                <span className="font-semibold">${(totals.monthly * 6).toFixed(2)}</span>
+                <div className="p-4 bg-secondary rounded-lg">
+                  <span className="text-sm font-medium">Monthly Costs (6 months)</span>
+                  <div className="text-lg font-bold mt-1">
+                    ${(totals.monthly * 6).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
                 
-                <span>Initial Inventory:</span>
-                <span className="font-semibold">${totals.inventory.toFixed(2)}</span>
+                <div className="p-4 bg-secondary rounded-lg">
+                  <span className="text-sm font-medium">Initial Inventory</span>
+                  <div className="text-lg font-bold mt-1">
+                    ${totals.inventory.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
                 
-                <span className="text-lg font-bold">Total Startup Cost:</span>
-                <span className="text-lg font-bold">${totalStartupCost.toFixed(2)}</span>
+                <div className="p-4 bg-primary/10 rounded-lg">
+                  <span className="text-sm font-medium">Total Startup Cost</span>
+                  <div className="text-xl font-bold mt-1">
+                    ${totalStartupCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
               </div>
               
-              <div className="mt-6 p-4 bg-secondary rounded-lg">
+              <div className="p-4 bg-secondary rounded-lg">
                 <h4 className="font-semibold mb-2">Recommended Emergency Fund</h4>
-                <p>${recommendedBuffer.toFixed(2)} (20% of total startup cost)</p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  This buffer helps cover unexpected expenses and initial operating losses.
+                <div className="text-lg font-bold mb-2">
+                  ${recommendedBuffer.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+                <p className="text-sm">
+                  This buffer (20% of total startup cost) helps cover unexpected expenses and initial operating losses.
                 </p>
               </div>
             </div>
@@ -169,12 +187,14 @@ export function StartupCostCalculator() {
             <h3 className="text-xl font-semibold mb-4">Cost Details</h3>
             <div className="space-y-4">
               {costs.map((cost, index) => (
-                <div key={index} className="flex justify-between items-center p-2 bg-secondary rounded">
+                <div key={index} className="flex justify-between items-center p-4 bg-secondary rounded-lg">
                   <div>
-                    <span className="font-semibold">{cost.name}</span>
-                    <span className="text-sm text-muted-foreground ml-2">({cost.category})</span>
+                    <div className="font-semibold">{cost.name}</div>
+                    <div className="text-sm text-muted-foreground">{cost.category}</div>
                   </div>
-                  <span>${cost.amount.toFixed(2)}</span>
+                  <div className="text-lg font-bold">
+                    ${cost.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
                 </div>
               ))}
               {costs.length === 0 && (

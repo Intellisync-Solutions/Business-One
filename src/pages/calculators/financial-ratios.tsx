@@ -665,7 +665,8 @@ const FinancialCalculators = () => {
                     inputs={ratio.inputs}
                     calculate={ratio.calculate}
                     interpretation={ratio.interpretation}
-                    data={financialData.ratios[ratio.title.toLowerCase().replace(' ', '-')] || {}}
+                    data={financialData.ratios[ratio.title.toLowerCase().replace(' ', '-')] || 
+                      Object.fromEntries(ratio.inputs.map(input => [input.name, 0]))}
                     onDataChange={(data) => setFinancialData({ ...financialData, ratios: { ...financialData.ratios, [ratio.title.toLowerCase().replace(' ', '-')]: data } })}
                   />
                 ))}

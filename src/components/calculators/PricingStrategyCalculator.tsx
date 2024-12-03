@@ -207,29 +207,45 @@ export function PricingStrategyCalculator() {
         <TabsContent value="optimal">
           <Card className="p-6">
             <h3 className="text-xl font-semibold mb-4">Optimal Pricing Strategy</h3>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-2">
-                <span>Optimal Price:</span>
-                <span className="font-semibold">${optimalScenario.price.toFixed(2)}</span>
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-secondary rounded-lg">
+                  <span className="text-sm font-medium">Optimal Price</span>
+                  <div className="text-lg font-bold mt-1">
+                    ${optimalScenario.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
                 
-                <span>Expected Volume:</span>
-                <span className="font-semibold">{optimalScenario.volume.toFixed(0)} units</span>
+                <div className="p-4 bg-secondary rounded-lg">
+                  <span className="text-sm font-medium">Expected Volume</span>
+                  <div className="text-lg font-bold mt-1">
+                    {optimalScenario.volume.toLocaleString()} units
+                  </div>
+                </div>
                 
-                <span>Projected Revenue:</span>
-                <span className="font-semibold">${optimalScenario.revenue.toFixed(2)}</span>
+                <div className="p-4 bg-secondary rounded-lg">
+                  <span className="text-sm font-medium">Projected Revenue</span>
+                  <div className="text-lg font-bold mt-1">
+                    ${optimalScenario.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
                 
-                <span>Projected Profit:</span>
-                <span className="font-semibold">${optimalScenario.profit.toFixed(2)}</span>
+                <div className="p-4 bg-secondary rounded-lg">
+                  <span className="text-sm font-medium">Projected Profit</span>
+                  <div className="text-lg font-bold mt-1">
+                    ${optimalScenario.profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
               </div>
               
-              <div className="mt-6 p-4 bg-secondary rounded-lg">
+              <div className="p-4 bg-secondary rounded-lg">
                 <h4 className="font-semibold mb-2">Price Positioning</h4>
-                <p>
+                <div className="text-lg font-bold mb-2">
                   {optimalScenario.price > market.competitorPrice ? 
-                    'Premium pricing strategy recommended' : 
-                    'Competitive pricing strategy recommended'}
-                </p>
-                <p className="text-sm text-muted-foreground mt-2">
+                    'Premium Pricing Strategy' : 
+                    'Competitive Pricing Strategy'}
+                </div>
+                <p className="text-sm">
                   Based on your cost structure and market conditions, this price point
                   maximizes profitability while considering market dynamics.
                 </p>

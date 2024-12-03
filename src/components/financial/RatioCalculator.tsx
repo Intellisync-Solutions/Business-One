@@ -191,22 +191,49 @@ export function RatioCalculator({
           </div>
         ))}
 
-        <Button onClick={handleCalculate} className="mt-2">
-          Calculate
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleCalculate} className="mt-2">
+            Calculate
+          </Button>
+          <Button 
+            onClick={() => {
+              const clearedData = Object.fromEntries(inputs.map(input => [input.name, 0]))
+              onDataChange?.(clearedData)
+              setShowResult(false)
+              setErrors({})
+            }} 
+            variant="outline" 
+            className="mt-2"
+          >
+            Clear
+          </Button>
+        </div>
 
         {showResult && result !== null && (
-          <Alert className={result > 0 ? "bg-green-50" : "bg-red-50"}>
-            <AlertTitle>Result: {formatResult(result)}</AlertTitle>
-            <AlertDescription>
-              {result > 0 ? interpretation.good : interpretation.bad}
-              {interpretation.context && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  {interpretation.context}
-                </p>
-              )}
-            </AlertDescription>
-          </Alert>
+          <div className="mt-4 space-y-4">
+            <div className="p-4 bg-secondary rounded-lg">
+              <div className="text-sm font-medium mb-1">Result</div>
+              <div className="text-2xl font-bold">
+                {formatResult(result)}
+              </div>
+            </div>
+
+            <Alert className={result > 0 ? "bg-green-50/50 border-green-200" : "bg-red-50/50 border-red-200"}>
+              <AlertTitle className="font-semibold">
+                {result > 0 ? "Positive Indicator" : "Attention Needed"}
+              </AlertTitle>
+              <AlertDescription>
+                <div className="text-sm font-medium mt-2">
+                  {result > 0 ? interpretation.good : interpretation.bad}
+                </div>
+                {interpretation.context && (
+                  <div className="text-sm mt-2">
+                    {interpretation.context}
+                  </div>
+                )}
+              </AlertDescription>
+            </Alert>
+          </div>
         )}
       </div>
     </Card>

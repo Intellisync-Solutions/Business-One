@@ -320,68 +320,87 @@ export function ScenarioPlannerCalculator() {
       <Card className="p-6">
         <h3 className="text-xl font-semibold mb-4">Scenario Analysis</h3>
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <h4 className="font-medium mb-2">Expected Outcomes</h4>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span>Expected Revenue:</span>
-                  <span className="font-semibold">${metrics.expectedRevenue.toFixed(2)}</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 bg-secondary rounded-lg">
+              <h4 className="font-medium mb-4">Expected Outcomes</h4>
+              <div className="space-y-4">
+                <div>
+                  <span className="text-sm font-medium">Expected Revenue</span>
+                  <div className="text-lg font-bold mt-1">
+                    ${metrics.expectedRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span>Expected Profit:</span>
-                  <span className="font-semibold">${metrics.expectedProfit.toFixed(2)}</span>
+                <div>
+                  <span className="text-sm font-medium">Expected Profit</span>
+                  <div className="text-lg font-bold mt-1">
+                    ${metrics.expectedProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div>
-              <h4 className="font-medium mb-2">Range Analysis</h4>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span>Market Share Range:</span>
-                  <span className="font-semibold">
-                    {metrics.marketShareRange.min}% - {metrics.marketShareRange.max}%
-                  </span>
+            <div className="p-4 bg-secondary rounded-lg">
+              <h4 className="font-medium mb-4">Range Analysis</h4>
+              <div className="space-y-4">
+                <div>
+                  <span className="text-sm font-medium">Market Share Range</span>
+                  <div className="text-lg font-bold mt-1">
+                    {metrics.marketShareRange.min.toLocaleString()}% - {metrics.marketShareRange.max.toLocaleString()}%
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span>Customer Growth Range:</span>
-                  <span className="font-semibold">
-                    {metrics.customerGrowthRange.min}% - {metrics.customerGrowthRange.max}%
-                  </span>
+                <div>
+                  <span className="text-sm font-medium">Customer Growth Range</span>
+                  <div className="text-lg font-bold mt-1">
+                    {metrics.customerGrowthRange.min.toLocaleString()}% - {metrics.customerGrowthRange.max.toLocaleString()}%
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="Base Case" name="Base Case" fill="#8884d8" />
-                <Bar dataKey="Optimistic" name="Optimistic" fill="#82ca9d" />
-                <Bar dataKey="Pessimistic" name="Pessimistic" fill="#ffc658" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={chartData}>
-                <PolarGrid />
-                <PolarAngleAxis dataKey="name" />
-                <PolarRadiusAxis />
-                <Radar dataKey="Base Case" name="Base Case" fill="#8884d8" />
-                <Radar dataKey="Optimistic" name="Optimistic" fill="#82ca9d" />
-                <Radar dataKey="Pessimistic" name="Pessimistic" fill="#ffc658" />
-              </RadarChart>
-            </ResponsiveContainer>
+          <div className="p-4 bg-secondary rounded-lg">
+            <h4 className="font-medium mb-4">Scenario Comparison</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {scenarios.map(scenario => (
+                <div key={scenario.id} className="space-y-2">
+                  <div className="font-medium">{scenario.name}</div>
+                  <div className="text-sm text-muted-foreground">Probability: {scenario.probability}%</div>
+                  <div className="text-lg font-bold">
+                    ${scenario.metrics.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </Card>
+
+      <div className="h-[400px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="Base Case" name="Base Case" fill="#8884d8" />
+            <Bar dataKey="Optimistic" name="Optimistic" fill="#82ca9d" />
+            <Bar dataKey="Pessimistic" name="Pessimistic" fill="#ffc658" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="h-[400px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <RadarChart data={chartData}>
+            <PolarGrid />
+            <PolarAngleAxis dataKey="name" />
+            <PolarRadiusAxis />
+            <Radar dataKey="Base Case" name="Base Case" fill="#8884d8" />
+            <Radar dataKey="Optimistic" name="Optimistic" fill="#82ca9d" />
+            <Radar dataKey="Pessimistic" name="Pessimistic" fill="#ffc658" />
+          </RadarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   )
 }

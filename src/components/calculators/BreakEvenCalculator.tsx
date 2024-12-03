@@ -457,28 +457,51 @@ export function BreakEvenCalculator() {
             {result && (
               <>
                 <div className="p-4 bg-secondary rounded-lg">
-                  <h3 className="font-semibold text-lg mb-2">Results</h3>
-                  {result.breakEvenUnits && (
-                    <p>Break-Even Units: {Math.ceil(result.breakEvenUnits)} units</p>
-                  )}
-                  {result.breakEvenPrice && (
-                    <p>Break-Even Price: ${result.breakEvenPrice.toFixed(2)}</p>
-                  )}
-                  {result.totalRevenueAtBreakEven && (
-                    <p>Total Revenue at Break-Even: ${result.totalRevenueAtBreakEven.toFixed(2)}</p>
-                  )}
-                  {result.contributionMargin && (
-                    <p>Contribution Margin per Unit: ${result.contributionMargin.toFixed(2)}</p>
-                  )}
-                  {result.profitMargin && (
-                    <p>Profit Margin: {result.profitMargin.toFixed(2)}%</p>
-                  )}
-                  {result.requiredPrice && (
-                    <p>Required Price: ${result.requiredPrice.toFixed(2)}</p>
-                  )}
-                  {result.targetProfitAmount && (
-                    <p>Target Profit Amount: ${result.targetProfitAmount.toFixed(2)}</p>
-                  )}
+                  <h3 className="font-semibold text-lg mb-4">Results</h3>
+                  <div className="space-y-3">
+                    {result.breakEvenUnits && (
+                      <div>
+                        <span className="text-sm font-medium">Break-Even Units</span>
+                        <div className="text-lg font-bold">{Math.ceil(result.breakEvenUnits).toLocaleString()} units</div>
+                      </div>
+                    )}
+                    {result.breakEvenPrice && (
+                      <div>
+                        <span className="text-sm font-medium">Break-Even Price</span>
+                        <div className="text-lg font-bold">${result.breakEvenPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      </div>
+                    )}
+                    {result.totalRevenueAtBreakEven && (
+                      <div>
+                        <span className="text-sm font-medium">Total Revenue at Break-Even</span>
+                        <div className="text-lg font-bold">${result.totalRevenueAtBreakEven.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      </div>
+                    )}
+                    {result.contributionMargin && (
+                      <div>
+                        <span className="text-sm font-medium">Contribution Margin per Unit</span>
+                        <div className="text-lg font-bold">${result.contributionMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      </div>
+                    )}
+                    {result.profitMargin && (
+                      <div>
+                        <span className="text-sm font-medium">Profit Margin</span>
+                        <div className="text-lg font-bold">{result.profitMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</div>
+                      </div>
+                    )}
+                    {result.requiredPrice && (
+                      <div>
+                        <span className="text-sm font-medium">Required Price</span>
+                        <div className="text-lg font-bold">${result.requiredPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      </div>
+                    )}
+                    {result.targetProfitAmount && (
+                      <div>
+                        <span className="text-sm font-medium">Target Profit Amount</span>
+                        <div className="text-lg font-bold">${result.targetProfitAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </>
             )}
