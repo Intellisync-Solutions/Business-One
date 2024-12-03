@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -44,7 +44,7 @@ export function SaveLoadState({ calculatorType, currentState, onLoadState }: Sav
     }
   })
 
-  const saveState = () => {
+  const saveState = useCallback(() => {
     if (!saveName.trim()) return
 
     const newState: SavedState = {
@@ -55,22 +55,26 @@ export function SaveLoadState({ calculatorType, currentState, onLoadState }: Sav
       data: currentState
     }
 
-    const updatedStates = [...savedStates, newState]
-    setSavedStates(updatedStates)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedStates))
+    setSavedStates(prev => {
+      const updated = [...prev, newState]
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+      return updated
+    })
     setSaveName('')
     setIsNaming(false)
-  }
+  }, [saveName, currentState, calculatorType])
 
-  const loadState = (state: SavedState) => {
+  const loadState = useCallback((state: SavedState) => {
     onLoadState(state.data)
-  }
+  }, [onLoadState])
 
-  const deleteState = (id: string) => {
-    const updatedStates = savedStates.filter(state => state.id !== id)
-    setSavedStates(updatedStates)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedStates))
-  }
+  const deleteState = useCallback((id: string) => {
+    setSavedStates(prev => {
+      const updated = prev.filter(state => state.id !== id)
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+      return updated
+    })
+  }, [])
 
   return (
     <div className="flex gap-2">

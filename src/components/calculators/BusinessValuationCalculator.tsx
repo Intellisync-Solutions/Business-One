@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ExportButton } from "@/components/common/ExportButton"
 import { SaveLoadState } from "@/components/common/SaveLoadState"
+import { validateForm, commonValidations, ValidationConfig } from "@/utils/validationUtils"
 
 interface FinancialMetrics {
   revenue: number;
@@ -25,7 +26,75 @@ export function BusinessValuationCalculator() {
     growthRate: 0
   })
 
-  const calculateValuations = () => {
+  const [errors, setErrors] = useState<{ [key: string]: string }>({})
+
+  const validationConfig: ValidationConfig = {
+    revenue: commonValidations.currency,
+    netIncome: { ...commonValidations.currency, min: undefined }, // Allow negative values
+    assets: commonValidations.currency,
+    liabilities: commonValidations.currency,
+    cashFlow: { ...commonValidations.currency, min: undefined }, // Allow negative values
+    growthRate: { ...commonValidations.percentage, min: -100 } // Allow negative growth
+  }
+
+  const handleInputChange = useCallback((field: keyof FinancialMetrics) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    
+    // Only update if the input matches our pattern or is empty
+    if (validationConfig[field].pattern?.test(value) || value === '') {
+      const newValue = value === '' ? 0 : parseFloat(value)
+      const newMetrics = { ...metrics, [field]: newValue }
+      
+      // Validate the field before updating
+      const validationResults = validateForm<FinancialMetrics>(newMetrics, { [field]: validationConfig[field] })
+      
+      setMetrics(newMetrics)
+      setErrors(prev => {
+        const newErrors = { ...prev }
+        if (validationResults[field]) {
+          newErrors[field] = validationResults[field]
+        } else {
+          delete newErrors[field]
+        }
+        return newErrors
+      })
+    }
+  }, [metrics, validationConfig])
+
+  const validateAllFields = useCallback((metricsToValidate: FinancialMetrics) => {
+    const validationResults = validateForm<FinancialMetrics>(metricsToValidate, validationConfig)
+    // Convert the validation results to our error state type
+    const errors: { [key: string]: string } = {}
+    Object.entries(validationResults).forEach(([key, value]) => {
+      if (value) {
+        errors[key] = value
+      }
+    })
+    return errors
+  }, [validationConfig])
+
+  const handleStateLoad = useCallback((state: any) => {
+    const newMetrics = state.metrics
+    setMetrics(newMetrics)
+    // Validate all fields when loading state
+    const newErrors = validateAllFields(newMetrics)
+    setErrors(newErrors)
+  }, [validationConfig, validateAllFields])
+
+  const valuations = useMemo(() => {
+    // Validate all fields
+    const formErrors = validateAllFields(metrics)
+    
+    // If there are any errors, return zero values
+    if (Object.keys(formErrors).length > 0) {
+      return {
+        assetBased: 0,
+        market: 0,
+        earnings: 0,
+        dcf: 0
+      }
+    }
+
     // Asset-based valuation
     const assetBasedValue = metrics.assets - metrics.liabilities;
 
@@ -58,9 +127,7 @@ export function BusinessValuationCalculator() {
       earnings: earningsValue,
       dcf: dcfValue
     }
-  }
-
-  const valuations = calculateValuations()
+  }, [metrics, validateAllFields])
 
   const chartData = [
     {
@@ -81,9 +148,7 @@ export function BusinessValuationCalculator() {
             metrics,
             valuations
           }}
-          onLoadState={(state) => {
-            setMetrics(state.metrics)
-          }}
+          onLoadState={handleStateLoad}
         />
         <ExportButton
           data={{
@@ -106,69 +171,105 @@ export function BusinessValuationCalculator() {
         <h3 className="text-xl font-semibold mb-4">Financial Metrics</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="revenue">Annual Revenue ($)</Label>
+            <Label htmlFor="revenue" className={errors.revenue ? "text-destructive" : ""}>
+              Annual Revenue ($)
+            </Label>
             <Input
               id="revenue"
-              type="number"
+              type="text"
               value={metrics.revenue || ''}
-              onChange={e => setMetrics({...metrics, revenue: parseFloat(e.target.value) || 0})}
+              onChange={handleInputChange('revenue')}
               placeholder="Enter annual revenue"
+              className={errors.revenue ? "border-destructive" : ""}
             />
+            {errors.revenue && (
+              <p className="text-sm text-destructive mt-1">{errors.revenue}</p>
+            )}
           </div>
           
           <div>
-            <Label htmlFor="netIncome">Net Income ($)</Label>
+            <Label htmlFor="netIncome" className={errors.netIncome ? "text-destructive" : ""}>
+              Net Income ($)
+            </Label>
             <Input
               id="netIncome"
-              type="number"
+              type="text"
               value={metrics.netIncome || ''}
-              onChange={e => setMetrics({...metrics, netIncome: parseFloat(e.target.value) || 0})}
+              onChange={handleInputChange('netIncome')}
               placeholder="Enter net income"
+              className={errors.netIncome ? "border-destructive" : ""}
             />
+            {errors.netIncome && (
+              <p className="text-sm text-destructive mt-1">{errors.netIncome}</p>
+            )}
           </div>
           
           <div>
-            <Label htmlFor="assets">Total Assets ($)</Label>
+            <Label htmlFor="assets" className={errors.assets ? "text-destructive" : ""}>
+              Total Assets ($)
+            </Label>
             <Input
               id="assets"
-              type="number"
+              type="text"
               value={metrics.assets || ''}
-              onChange={e => setMetrics({...metrics, assets: parseFloat(e.target.value) || 0})}
+              onChange={handleInputChange('assets')}
               placeholder="Enter total assets"
+              className={errors.assets ? "border-destructive" : ""}
             />
+            {errors.assets && (
+              <p className="text-sm text-destructive mt-1">{errors.assets}</p>
+            )}
           </div>
           
           <div>
-            <Label htmlFor="liabilities">Total Liabilities ($)</Label>
+            <Label htmlFor="liabilities" className={errors.liabilities ? "text-destructive" : ""}>
+              Total Liabilities ($)
+            </Label>
             <Input
               id="liabilities"
-              type="number"
+              type="text"
               value={metrics.liabilities || ''}
-              onChange={e => setMetrics({...metrics, liabilities: parseFloat(e.target.value) || 0})}
+              onChange={handleInputChange('liabilities')}
               placeholder="Enter total liabilities"
+              className={errors.liabilities ? "border-destructive" : ""}
             />
+            {errors.liabilities && (
+              <p className="text-sm text-destructive mt-1">{errors.liabilities}</p>
+            )}
           </div>
           
           <div>
-            <Label htmlFor="cashFlow">Annual Cash Flow ($)</Label>
+            <Label htmlFor="cashFlow" className={errors.cashFlow ? "text-destructive" : ""}>
+              Annual Cash Flow ($)
+            </Label>
             <Input
               id="cashFlow"
-              type="number"
+              type="text"
               value={metrics.cashFlow || ''}
-              onChange={e => setMetrics({...metrics, cashFlow: parseFloat(e.target.value) || 0})}
+              onChange={handleInputChange('cashFlow')}
               placeholder="Enter annual cash flow"
+              className={errors.cashFlow ? "border-destructive" : ""}
             />
+            {errors.cashFlow && (
+              <p className="text-sm text-destructive mt-1">{errors.cashFlow}</p>
+            )}
           </div>
           
           <div>
-            <Label htmlFor="growthRate">Expected Growth Rate (%)</Label>
+            <Label htmlFor="growthRate" className={errors.growthRate ? "text-destructive" : ""}>
+              Expected Growth Rate (%)
+            </Label>
             <Input
               id="growthRate"
-              type="number"
+              type="text"
               value={metrics.growthRate || ''}
-              onChange={e => setMetrics({...metrics, growthRate: parseFloat(e.target.value) || 0})}
+              onChange={handleInputChange('growthRate')}
               placeholder="Enter expected growth rate"
+              className={errors.growthRate ? "border-destructive" : ""}
             />
+            {errors.growthRate && (
+              <p className="text-sm text-destructive mt-1">{errors.growthRate}</p>
+            )}
           </div>
         </div>
       </Card>

@@ -56,10 +56,13 @@ const renderActiveShape = (props: any) => {
         outerRadius={outerRadius + 10}
         fill={fill}
       />
-      <text x={cx} y={cy} dy={-4} textAnchor="middle" fill={fill}>
+      <text x={cx} y={cy} dy={-15} textAnchor="middle" fill={fill}>
         {payload.name}
       </text>
-      <text x={cx} y={cy} dy={20} textAnchor="middle" fill="#999">
+      <text x={cx} y={cy} dy={8} textAnchor="middle" fill="#666">
+        {`Value: ${value}`}
+      </text>
+      <text x={cx} y={cy} dy={25} textAnchor="middle" fill="#999">
         {`${(percent * 100).toFixed(2)}%`}
       </text>
     </g>
