@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ExportButton } from "@/components/common/ExportButton"
 import { SaveLoadState } from "@/components/common/SaveLoadState"
@@ -174,34 +173,128 @@ export function BusinessValuationCalculator() {
         </div>
       </Card>
 
-      <Card className="p-6">
-        <h3 className="text-xl font-semibold mb-4">Valuation Results</h3>
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-2">
-            <span>Asset-Based Valuation:</span>
-            <span className="font-semibold">${valuations.assetBased.toFixed(2)}</span>
-            
-            <span>Market Multiple Valuation:</span>
-            <span className="font-semibold">${valuations.market.toFixed(2)}</span>
-            
-            <span>Earnings-Based Valuation:</span>
-            <span className="font-semibold">${valuations.earnings.toFixed(2)}</span>
-            
-            <span>DCF Valuation:</span>
-            <span className="font-semibold">${valuations.dcf.toFixed(2)}</span>
-          </div>
-          
-          <div className="mt-6 p-4 bg-secondary rounded-lg">
-            <h4 className="font-semibold mb-2">Suggested Value Range</h4>
-            <p>${Math.min(valuations.assetBased, valuations.market, valuations.earnings, valuations.dcf).toFixed(2)} - 
-               ${Math.max(valuations.assetBased, valuations.market, valuations.earnings, valuations.dcf).toFixed(2)}</p>
-            <p className="text-sm text-muted-foreground mt-2">
-              This range represents different valuation methods. The actual value may vary based on industry specifics,
-              market conditions, and other factors.
-            </p>
-          </div>
-        </div>
-      </Card>
+      <Tabs defaultValue="summary" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="summary">Summary</TabsTrigger>
+          <TabsTrigger value="details">Detailed Analysis</TabsTrigger>
+          <TabsTrigger value="methods">Valuation Methods</TabsTrigger>
+          <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="summary">
+          <Card className="p-6">
+            <h3 className="text-xl font-semibold mb-4">Valuation Summary</h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                <span>Suggested Value Range:</span>
+                <span className="font-semibold">
+                  ${Math.min(valuations.assetBased, valuations.market, valuations.earnings, valuations.dcf).toFixed(2)} - 
+                  ${Math.max(valuations.assetBased, valuations.market, valuations.earnings, valuations.dcf).toFixed(2)}
+                </span>
+                
+                <span>Average Valuation:</span>
+                <span className="font-semibold">
+                  ${((valuations.assetBased + valuations.market + valuations.earnings + valuations.dcf) / 4).toFixed(2)}
+                </span>
+              </div>
+            </div>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="details">
+          <Card className="p-6">
+            <h3 className="text-xl font-semibold mb-4">Detailed Valuation Results</h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                <span>Asset-Based Valuation:</span>
+                <span className="font-semibold">${valuations.assetBased.toFixed(2)}</span>
+                
+                <span>Market Multiple Valuation:</span>
+                <span className="font-semibold">${valuations.market.toFixed(2)}</span>
+                
+                <span>Earnings-Based Valuation:</span>
+                <span className="font-semibold">${valuations.earnings.toFixed(2)}</span>
+                
+                <span>DCF Valuation:</span>
+                <span className="font-semibold">${valuations.dcf.toFixed(2)}</span>
+              </div>
+            </div>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="methods">
+          <Card className="p-6">
+            <h3 className="text-xl font-semibold mb-4">Valuation Methods Explained</h3>
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-semibold">Asset-Based Valuation</h4>
+                <p className="text-sm text-muted-foreground">
+                  Calculates business value based on total assets minus total liabilities.
+                  Best suited for asset-heavy businesses.
+                </p>
+              </div>
+              
+              <div>
+                <h4 className="font-semibold">Market Multiple Valuation</h4>
+                <p className="text-sm text-muted-foreground">
+                  Uses industry revenue multiples to estimate value.
+                  Current multiple used: 2.0x revenue.
+                </p>
+              </div>
+              
+              <div>
+                <h4 className="font-semibold">Earnings-Based Valuation</h4>
+                <p className="text-sm text-muted-foreground">
+                  Based on price-to-earnings (P/E) ratio.
+                  Current P/E ratio used: 15x earnings.
+                </p>
+              </div>
+              
+              <div>
+                <h4 className="font-semibold">Discounted Cash Flow (DCF)</h4>
+                <p className="text-sm text-muted-foreground">
+                  Projects future cash flows and discounts them to present value.
+                  Uses 10% discount rate and {metrics.growthRate}% growth rate.
+                </p>
+              </div>
+            </div>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="recommendations">
+          <Card className="p-6">
+            <h3 className="text-xl font-semibold mb-4">Recommendations</h3>
+            <div className="space-y-4">
+              <div className="p-4 bg-secondary rounded-lg">
+                <h4 className="font-semibold mb-2">Valuation Analysis</h4>
+                <p className="text-sm text-muted-foreground">
+                  Based on the multiple valuation methods, we recommend considering a value range of 
+                  ${Math.min(valuations.assetBased, valuations.market, valuations.earnings, valuations.dcf).toFixed(2)} to 
+                  ${Math.max(valuations.assetBased, valuations.market, valuations.earnings, valuations.dcf).toFixed(2)}.
+                </p>
+              </div>
+              
+              <div className="p-4 bg-secondary rounded-lg">
+                <h4 className="font-semibold mb-2">Key Value Drivers</h4>
+                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-2">
+                  <li>Strong cash flow generation: ${metrics.cashFlow.toFixed(2)} annually</li>
+                  <li>Projected growth rate: {metrics.growthRate}%</li>
+                  <li>Net asset value: ${(metrics.assets - metrics.liabilities).toFixed(2)}</li>
+                  <li>Annual revenue: ${metrics.revenue.toFixed(2)}</li>
+                </ul>
+              </div>
+              
+              <div className="p-4 bg-secondary rounded-lg">
+                <h4 className="font-semibold mb-2">Considerations</h4>
+                <p className="text-sm text-muted-foreground">
+                  The final valuation should consider industry conditions, market sentiment, and company-specific factors.
+                  Consider seeking professional advice for a more detailed analysis.
+                </p>
+              </div>
+            </div>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
