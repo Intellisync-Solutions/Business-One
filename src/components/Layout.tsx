@@ -123,7 +123,7 @@ const Layout = () => {
           to={hasSubItems ? '#' : item.path}
           onClick={hasSubItems ? () => toggleMenu(item.path) : undefined}
           className={({ isActive }) =>
-            `flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+            `flex items-center gap-3 px-3 py-2 my-1 rounded-lg transition-colors ${
               isActive
                 ? 'bg-secondary text-primary'
                 : 'text-muted-foreground hover:bg-secondary/50'
