@@ -97,4 +97,26 @@ export interface CashFlowProjection {
   expenses: number;
   netCashFlow: number;
   cumulativeCashFlow: number;
+  
+  // Added properties for financial ratios
+  currentAssets: number;
+  currentLiabilities: number;
+  inventory: number;
+  costOfGoodsSold: number;
+  totalExpenses: number;
+  totalAssets: number;
+  shareholderEquity: number;
+  beginningInventory: number;
+  endingInventory: number;
+  beginningReceivables: number;
+  endingReceivables: number;
+  totalLiabilities: number;
+  ebit: number;
+  interestExpense: number;
+  operatingCashFlow: number;
+  ebitda: number;
+  stockPrice: number;
+  netIncome: number;
+  outstandingShares: number;
+  operatingIncome: number;
 }

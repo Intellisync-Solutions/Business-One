@@ -338,7 +338,29 @@ export default function CashFlowAnalyzer({ data, onDataChange }: CashFlowAnalyze
         revenue,
         expenses,
         netCashFlow,
-        cumulativeCashFlow
+        cumulativeCashFlow,
+        
+        // Add default or calculated values for required properties
+        currentAssets: 0, // You might want to calculate this based on your financial data
+        currentLiabilities: 0, // Calculate based on financial obligations
+        inventory: 0, // Calculate based on product sales and inventory turnover
+        costOfGoodsSold: expenses, // A simple approximation
+        totalExpenses: expenses,
+        totalAssets: 0,
+        shareholderEquity: 0,
+        beginningInventory: 0,
+        endingInventory: 0,
+        beginningReceivables: 0,
+        endingReceivables: 0,
+        totalLiabilities: 0,
+        ebit: netCashFlow, // Earnings before interest and taxes
+        interestExpense: 0,
+        operatingCashFlow: netCashFlow,
+        ebitda: netCashFlow, // Earnings before interest, taxes, depreciation, and amortization
+        stockPrice: 0,
+        netIncome: netCashFlow,
+        outstandingShares: 0,
+        operatingIncome: netCashFlow
       })
     })
 
@@ -505,7 +527,39 @@ export default function CashFlowAnalyzer({ data, onDataChange }: CashFlowAnalyze
         revenue: projectedRevenue,
         expenses: projectedExpenses,
         netCashFlow: netCashFlow,
-        cumulativeCashFlow: 0 // This will be calculated separately
+        cumulativeCashFlow: 0, // This will be calculated separately
+
+        // Balance Sheet Items
+        currentAssets: projectedRevenue * 0.3, // Assume 30% of revenue is current assets
+        currentLiabilities: projectedExpenses * 0.25, // Assume 25% of expenses are current liabilities
+        inventory: projectedRevenue * 0.15, // Assume 15% of revenue is inventory
+        totalAssets: projectedRevenue * 0.8, // Assume 80% of revenue is total assets
+        shareholderEquity: projectedRevenue * 0.4, // Assume 40% of revenue is shareholder equity
+        totalLiabilities: projectedExpenses * 0.6, // Assume 60% of expenses are total liabilities
+
+        // Income Statement Items
+        costOfGoodsSold: projectedExpenses * 0.7, // Assume 70% of expenses are COGS
+        totalExpenses: projectedExpenses,
+        operatingIncome: projectedRevenue - projectedExpenses,
+        ebit: projectedRevenue - projectedExpenses,
+        ebitda: (projectedRevenue - projectedExpenses) * 1.1, // Add back estimated D&A
+        netIncome: (projectedRevenue - projectedExpenses) * 0.75, // After estimated taxes
+
+        // Cash Flow Items
+        operatingCashFlow: netCashFlow * 0.9, // Assume 90% of net cash flow is from operations
+        
+        // Market Items
+        stockPrice: (projectedRevenue - projectedExpenses) * 0.5, // Simplified P/E based calculation
+        outstandingShares: 1000000, // Assume constant number of shares
+        
+        // Working Capital Items
+        beginningInventory: projectedRevenue * 0.14, // Previous period inventory
+        endingInventory: projectedRevenue * 0.15, // Current period inventory
+        beginningReceivables: projectedRevenue * 0.19, // Previous period receivables
+        endingReceivables: projectedRevenue * 0.2, // Current period receivables
+        
+        // Interest and Debt
+        interestExpense: projectedExpenses * 0.05 // Assume 5% of expenses are interest
       };
     });
 
