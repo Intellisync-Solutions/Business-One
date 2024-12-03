@@ -4,6 +4,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { ExportButton } from "@/components/common/ExportButton"
+import { SaveLoadState } from "@/components/common/SaveLoadState"
 
 interface BreakEvenData {
   fixedCosts: number
@@ -22,6 +24,7 @@ export function BreakEvenCalculator() {
 
   const [breakEvenPoint, setBreakEvenPoint] = useState<number | null>(null)
   const [chartData, setChartData] = useState<any[]>([])
+  const [breakEvenPoints, setBreakEvenPoints] = useState<any[]>([])
 
   const calculateBreakEven = () => {
     const { fixedCosts, variableCostPerUnit, sellingPricePerUnit } = data
@@ -53,6 +56,12 @@ export function BreakEvenCalculator() {
     }
     
     setChartData(chartPoints)
+    setBreakEvenPoints(chartPoints.map(point => ({
+      units: point.units,
+      revenue: point.revenue,
+      totalCost: point.costs,
+      profit: point.profit
+    })))
   }
 
   const handleInputChange = (field: keyof BreakEvenData) => (
@@ -62,8 +71,54 @@ export function BreakEvenCalculator() {
     setData(prev => ({ ...prev, [field]: value }))
   }
 
+  const calculateResults = () => {
+    const { fixedCosts, variableCostPerUnit, sellingPricePerUnit } = data
+    const contributionMargin = sellingPricePerUnit - variableCostPerUnit
+    const breakEvenUnits = fixedCosts / contributionMargin
+    const totalRevenueAtBreakEven = breakEvenUnits * sellingPricePerUnit
+
+    return {
+      breakEvenUnits,
+      totalRevenueAtBreakEven,
+      contributionMargin
+    }
+  }
+
+  const enhancedChartData = breakEvenPoints.map(point => ({
+    name: `Units: ${point.units}`,
+    'Total Revenue': point.revenue,
+    'Total Cost': point.totalCost,
+    'Profit/Loss': point.revenue - point.totalCost
+  }))
+
   return (
     <div className="space-y-6">
+      <div className="flex justify-end gap-2">
+        <SaveLoadState
+          calculatorType="break-even"
+          currentState={{
+            fixedCosts: data.fixedCosts,
+            variableCosts: data.variableCostPerUnit,
+            sellingPrice: data.sellingPricePerUnit,
+            breakEvenPoints
+          }}
+          onLoadState={(state) => {
+            setData(prev => ({ ...prev, 
+              fixedCosts: state.fixedCosts,
+              variableCostPerUnit: state.variableCosts,
+              sellingPricePerUnit: state.sellingPrice
+            }))
+          }}
+        />
+        <ExportButton
+          data={breakEvenPoints}
+          filename="break-even-analysis"
+          title="Break-Even Analysis"
+          description="Analysis of costs, revenue, and break-even points"
+          chartType="line"
+          chartData={enhancedChartData}
+        />
+      </div>
       <Card className="p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">

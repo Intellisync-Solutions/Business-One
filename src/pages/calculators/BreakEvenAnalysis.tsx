@@ -1,5 +1,5 @@
-import { Card } from "@/components/ui/card"
 import { PageHeader } from "@/components/PageHeader"
+import { BreakEvenCalculator } from "@/components/calculators/BreakEvenCalculator"
 
 export default function BreakEvenAnalysis() {
   return (
@@ -10,20 +10,7 @@ export default function BreakEvenAnalysis() {
       />
       
       <div className="grid gap-6 mt-6">
-        <Card className="p-6">
-          <h2 className="text-2xl font-bold mb-4">Break-Even Calculator</h2>
-          {/* Break-even calculator component will go here */}
-        </Card>
-
-        <Card className="p-6">
-          <h2 className="text-2xl font-bold mb-4">Pricing Scenarios</h2>
-          {/* Pricing scenarios component will go here */}
-        </Card>
-
-        <Card className="p-6">
-          <h2 className="text-2xl font-bold mb-4">Safety Margin Analysis</h2>
-          {/* Safety margin component will go here */}
-        </Card>
+        <BreakEvenCalculator />
       </div>
     </div>
   )

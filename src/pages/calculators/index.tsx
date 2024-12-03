@@ -1,7 +1,6 @@
 import { Card } from "@/components/ui/card"
-import { PageHeader } from "@/components/PageHeader"
 import { Button } from "@/components/ui/button"
-import { useRouter } from "next/router"
+import { useNavigate } from "react-router-dom"
 import {
   Calculator,
   LineChart,
@@ -12,7 +11,7 @@ import {
 } from "lucide-react"
 
 export default function Calculators() {
-  const router = useRouter()
+  const navigate = useNavigate()
 
   const calculators = [
     {
@@ -44,22 +43,25 @@ export default function Calculators() {
       description: "Calculate your business value using various valuation methods",
       icon: Building,
       href: "/calculators/business-valuation"
+    },
+    {
+      title: "Market Performance",
+      description: "Analyze and visualize market performance metrics and trends",
+      icon: BarChart4,
+      href: "/calculators/market-performance"
     }
   ]
 
   return (
     <div className="container mx-auto py-6">
-      <PageHeader
-        title="Financial Calculators"
-        description="Comprehensive tools for business planning and analysis"
-      />
+      <h1>Financial Calculators</h1>
       
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6">
         {calculators.map((calculator) => (
           <Card 
             key={calculator.href}
             className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => router.push(calculator.href)}
+            onClick={() => navigate(calculator.href)}
           >
             <div className="flex items-center gap-4 mb-4">
               <calculator.icon className="h-8 w-8 text-primary" />
