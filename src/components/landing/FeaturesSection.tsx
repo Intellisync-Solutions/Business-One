@@ -156,8 +156,8 @@ const features: Feature[] = [
   }
 ]
 
-export function FeaturesSection() {
-  const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null)
+export const FeaturesSection = () => {
+  const [currentFeature, setCurrentFeature] = useState(0)
 
   return (
     <section className="py-20 bg-background">
@@ -169,12 +169,8 @@ export function FeaturesSection() {
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Powerful Tools for Smart Business Decisions
-            </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Everything you need to analyze, plan, and grow your business with confidence
-            </p>
+            <h2 className="text-3xl font-bold mb-4">Our Features</h2>
+            <p className="text-muted-foreground">Powerful tools to grow your business</p>
           </motion.div>
         </div>
 
@@ -207,53 +203,26 @@ export function FeaturesSection() {
                 </DialogTrigger>
                 <DialogContent className="max-w-2xl">
                   <DialogHeader>
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                        {feature.icon}
-                      </div>
-                      <div>
-                        <DialogTitle className="text-2xl">{feature.title}</DialogTitle>
-                        <DialogDescription>{feature.description}</DialogDescription>
-                      </div>
-                    </div>
+                    <DialogTitle>{feature.title}</DialogTitle>
+                    <DialogDescription>{feature.description}</DialogDescription>
                   </DialogHeader>
-                  <div className="mt-6 space-y-6">
-                    <p className="text-lg">{feature.details.overview}</p>
-                    
-                    <div>
-                      <h4 className="font-semibold text-lg mb-2 flex items-center gap-2">
-                        <Target className="h-5 w-5" />
-                        Key Benefits
-                      </h4>
-                      <ul className="grid sm:grid-cols-2 gap-2">
-                        {feature.details.benefits.map((benefit) => (
-                          <li key={benefit} className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                            {benefit}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                  <div className="mt-6">
+                    <h4 className="font-semibold mb-2">Overview</h4>
+                    <p>{feature.details.overview}</p>
 
-                    <div>
-                      <h4 className="font-semibold text-lg mb-2 flex items-center gap-2">
-                        <Lightbulb className="h-5 w-5" />
-                        Features
-                      </h4>
-                      <ul className="grid sm:grid-cols-2 gap-2">
-                        {feature.details.keyFeatures.map((feature) => (
-                          <li key={feature} className="flex items-center gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                            {feature}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                    <h4 className="font-semibold mt-4 mb-2">Benefits</h4>
+                    <ul className="list-disc pl-5">
+                      {feature.details.benefits.map((benefit, idx) => (
+                        <li key={idx}>{benefit}</li>
+                      ))}
+                    </ul>
 
-                    <Button size="lg" className="w-full sm:w-auto">
-                      Try It Now
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
+                    <h4 className="font-semibold mt-4 mb-2">Key Features</h4>
+                    <ul className="list-disc pl-5">
+                      {feature.details.keyFeatures.map((keyFeature, idx) => (
+                        <li key={idx}>{keyFeature}</li>
+                      ))}
+                    </ul>
                   </div>
                 </DialogContent>
               </Dialog>
