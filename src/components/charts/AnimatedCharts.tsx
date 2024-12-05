@@ -1,4 +1,3 @@
-import React, { useState, useEffect } from 'react'
 import {
   LineChart,
   Line,
@@ -21,6 +20,7 @@ import {
   Sector
 } from 'recharts'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect } from 'react'
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d']
 
