@@ -1,4 +1,3 @@
-import { useState } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,8 +16,6 @@ import {
   LineChart,
   PieChart,
   TrendingUp,
-  Lightbulb,
-  Target,
   ArrowRight
 } from "lucide-react"
 
@@ -157,8 +154,6 @@ const features: Feature[] = [
 ]
 
 export const FeaturesSection = () => {
-  const [currentFeature, setCurrentFeature] = useState(0)
-
   return (
     <section className="py-20 bg-background">
       <div className="container mx-auto px-4">
@@ -169,8 +164,12 @@ export const FeaturesSection = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
           >
-            <h2 className="text-3xl font-bold mb-4">Our Features</h2>
-            <p className="text-muted-foreground">Powerful tools to grow your business</p>
+            <h2 className="text-3xl font-bold mb-4">
+              Powerful Features for Business Success
+            </h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Unlock your business potential with our comprehensive suite of tools
+            </p>
           </motion.div>
         </div>
 
