@@ -7,7 +7,7 @@ export function HeroSection() {
   const navigate = useNavigate()
 
   const handleGetStarted = () => {
-    navigate('/dashboard/business-plan') 
+    navigate('/business-plan', { replace: true }) 
   }
 
   return (

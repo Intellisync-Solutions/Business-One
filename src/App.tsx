@@ -20,19 +20,18 @@ function App() {
   return (
     <div className="min-h-screen bg-background">
       <Routes>
-        <Route path="/dashboard" element={<Layout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="business-plan" element={<BusinessPlan />} />
-          <Route path="financial-calculators" element={<FinancialCalculators />} />
-          <Route path="calculators/cashflow-analysis" element={<CashflowAnalysis />} />
-          <Route path="calculators/startup-cost-estimator" element={<StartupCostEstimator />} />
-          <Route path="calculators/break-even-analysis" element={<BreakEvenAnalysis />} />
-          <Route path="calculators/scenario-planner" element={<ScenarioPlanner />} />
-          <Route path="calculators/pricing-strategy" element={<PricingStrategy />} />
-          <Route path="calculators/financial-ratios" element={<FinancialRatios />} />
-          <Route path="calculators/business-valuation" element={<BusinessValuation />} />
-        </Route>
         <Route path="/" element={<LandingPage />} />
+        <Route element={<Layout />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/business-plan" element={<BusinessPlan />} />
+          <Route path="/calculators/startup-cost-estimator" element={<StartupCostEstimator />} />
+          <Route path="/calculators/break-even-analysis" element={<BreakEvenAnalysis />} />
+          <Route path="/calculators/scenario-planner" element={<ScenarioPlanner />} />
+          <Route path="/calculators/pricing-strategy" element={<PricingStrategy />} />
+          <Route path="/calculators/cashflow-analysis" element={<CashflowAnalysis />} />
+          <Route path="/calculators/financial-ratios" element={<FinancialRatios />} />
+          <Route path="/calculators/business-valuation" element={<BusinessValuation />} />
+        </Route>
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-of-service" element={<TermsOfService />} />
         <Route path="/cookies-policy" element={<CookiesPolicy />} />

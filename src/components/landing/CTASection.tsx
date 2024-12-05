@@ -47,7 +47,7 @@ export function CTASection() {
   ]
 
   const handleGetStarted = () => {
-    navigate('/dashboard/business-plan')
+    navigate('/business-plan')
   }
 
   return (
