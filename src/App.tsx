@@ -1,8 +1,8 @@
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
-import Dashboard from './pages/Dashboard'
+
 import BusinessPlan from './pages/BusinessPlan'
-import CashflowAnalysis from './pages/calculators/cashflow-analysis'
+
 import StartupCostEstimator from './pages/calculators/StartupCostEstimator'
 import BreakEvenAnalysis from './pages/calculators/BreakEvenAnalysis'
 import ScenarioPlanner from './pages/calculators/ScenarioPlanner'
@@ -21,13 +21,13 @@ function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route element={<Layout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
+         
           <Route path="/business-plan" element={<BusinessPlan />} />
           <Route path="/calculators/startup-cost-estimator" element={<StartupCostEstimator />} />
           <Route path="/calculators/break-even-analysis" element={<BreakEvenAnalysis />} />
           <Route path="/calculators/scenario-planner" element={<ScenarioPlanner />} />
           <Route path="/calculators/pricing-strategy" element={<PricingStrategy />} />
-          <Route path="/calculators/cashflow-analysis" element={<CashflowAnalysis />} />
+     
           <Route path="/calculators/financial-ratios" element={<FinancialRatios />} />
           <Route path="/calculators/business-valuation" element={<BusinessValuation />} />
         </Route>

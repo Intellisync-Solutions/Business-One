@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background with gradient -->
+  <rect width="1200" height="630" fill="url(#gradient)"/>
+  
+  <!-- Logo -->
+  <g transform="translate(100, 165)" filter="url(#glow)">
+    <!-- Using the same icon from favicon but larger -->
+    <rect width="300" height="300" rx="60" fill="#0f172a"/>
+    <path d="M150 56C140.059 56 132 64.0589 132 74V226C132 235.941 140.059 244 150 244C159.941 244 168 235.941 168 226V74C168 64.0589 159.941 56 150 56Z" fill="#ffffff"/>
+    <path d="M150 36C103.726 36 66 73.7258 66 120C66 129.941 74.0589 138 84 138C93.9411 138 102 129.941 102 120C102 93.4903 123.49 72 150 72C159.941 72 168 63.9411 168 54C168 44.0589 159.941 36 150 36Z" fill="#38bdf8"/>
+    <path d="M150 264C196.274 264 234 226.274 234 180C234 170.059 225.941 162 216 162C206.059 162 198 170.059 198 180C198 206.51 176.51 228 150 228C140.059 228 132 236.059 132 246C132 255.941 140.059 264 150 264Z" fill="#38bdf8"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="440" y="230" font-family="Inter, system-ui, sans-serif" font-size="72" font-weight="700" fill="#ffffff">Intellisync</text>
+  <text x="440" y="320" font-family="Inter, system-ui, sans-serif" font-size="48" font-weight="500" fill="#94a3b8">Business Suite</text>
+  <text x="440" y="400" font-family="Inter, system-ui, sans-serif" font-size="32" font-weight="400" fill="#cbd5e1">Smart Business Intelligence &amp; Financial Analytics</text>
+  
+  <!-- Decorative elements -->
+  <path d="M1000 100C1050 150 1100 200 1150 250" stroke="#38bdf8" stroke-width="4" stroke-linecap="round"/>
+  <path d="M1000 150C1050 200 1100 250 1150 300" stroke="#38bdf8" stroke-width="4" stroke-linecap="round" opacity="0.7"/>
+  <path d="M1000 200C1050 250 1100 300 1150 350" stroke="#38bdf8" stroke-width="4" stroke-linecap="round" opacity="0.4"/>
+  
+  <!-- Definitions -->
+  <defs>
+    <!-- Background gradient -->
+    <linearGradient id="gradient" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    
+    <!-- Glow effect -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feOffset dx="0" dy="0" result="offsetBlur"/>
+      <feMerge>
+        <feMergeNode in="offsetBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+</svg>

@@ -17,17 +17,19 @@ interface SavedState {
   timestamp: number
   calculatorType: string
   data: any
+  state: any
 }
 
 interface SaveLoadStateProps {
   calculatorType: string
   currentState: any
   onLoadState: (state: any) => void
+  data?: any
 }
 
 const STORAGE_KEY = 'intellisync_calculator_states'
 
-export function SaveLoadState({ calculatorType, currentState, onLoadState }: SaveLoadStateProps) {
+export function SaveLoadState({ calculatorType, currentState, onLoadState, data }: SaveLoadStateProps) {
   const [isNaming, setIsNaming] = useState(false)
   const [saveName, setSaveName] = useState('')
   const [savedStates, setSavedStates] = useState<SavedState[]>(() => {
@@ -39,33 +41,31 @@ export function SaveLoadState({ calculatorType, currentState, onLoadState }: Sav
       return Array.isArray(parsed) 
         ? parsed.filter(state => state.calculatorType === calculatorType)
         : []
-    } catch {
+    } catch (error) {
+      console.error('Error parsing saved states:', error)
       return []
     }
   })
 
   const saveState = useCallback(() => {
-    if (!saveName.trim()) return
-
     const newState: SavedState = {
       id: uuidv4(),
-      name: saveName,
+      name: saveName || `${calculatorType} State ${new Date().toLocaleString()}`,
       timestamp: Date.now(),
       calculatorType,
-      data: currentState
+      state: currentState,
+      data: data
     }
 
-    setSavedStates(prev => {
-      const updated = [...prev, newState]
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
-      return updated
-    })
-    setSaveName('')
+    const updatedStates = [...savedStates, newState]
+    setSavedStates(updatedStates)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedStates))
     setIsNaming(false)
-  }, [saveName, currentState, calculatorType])
+    setSaveName('')
+  }, [calculatorType, currentState, data, savedStates, saveName])
 
   const loadState = useCallback((state: SavedState) => {
-    onLoadState(state.data)
+    onLoadState(state.state)
   }, [onLoadState])
 
   const deleteState = useCallback((id: string) => {

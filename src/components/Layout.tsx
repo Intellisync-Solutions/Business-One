@@ -5,7 +5,7 @@ import {
   LayoutDashboard, 
   FileText, 
   Calculator, 
-  TrendingUp,
+  
   Target,
   PiggyBank,
   LineChart,
@@ -55,46 +55,10 @@ const Layout = () => {
           label: 'Pricing Strategy'
         },
         { 
-          path: '/calculators/cashflow-analysis',
-          icon: TrendingUp,
-          label: 'Cash Flow Analysis'
-        },
-        { 
           path: '/calculators/financial-ratios',
           icon: BarChart4,
           label: 'Financial Ratios',
-          subItems: [
-            {
-              path: '/calculators/financial-ratios#liquidity',
-              icon: LineChart,
-              label: 'Liquidity Ratios'
-            },
-            {
-              path: '/calculators/financial-ratios#profitability',
-              icon: LineChart,
-              label: 'Profitability Ratios'
-            },
-            {
-              path: '/calculators/financial-ratios#efficiency',
-              icon: LineChart,
-              label: 'Efficiency Ratios'
-            },
-            {
-              path: '/calculators/financial-ratios#leverage',
-              icon: LineChart,
-              label: 'Leverage Ratios'
-            },
-            {
-              path: '/calculators/financial-ratios#cashflow',
-              icon: LineChart,
-              label: 'Cash Flow Ratios'
-            },
-            {
-              path: '/calculators/financial-ratios#marketValue',
-              icon: LineChart,
-              label: 'Market Value Ratios'
-            }
-          ]
+         
         },
         {
           path: '/calculators/business-valuation',

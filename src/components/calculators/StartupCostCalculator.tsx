@@ -1,4 +1,4 @@
-import { useState } from 'react'
+
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -6,6 +6,15 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ExportButton } from "@/components/common/ExportButton"
 import { SaveLoadState } from "@/components/common/SaveLoadState"
+import { 
+  Tooltip as UITooltip, 
+  TooltipContent, 
+  TooltipProvider, 
+  TooltipTrigger 
+} from "@/components/ui/tooltip"
+import { AlertCircle } from "lucide-react"
+import { DataPersistence } from '@/components/common/DataPersistence'
+import { useCalculatorData } from '@/hooks/useCalculatorData'
 
 interface StartupCost {
   name: string;
@@ -14,196 +23,271 @@ interface StartupCost {
   description?: string;
 }
 
+interface StartupCostData {
+  costs: StartupCost[];
+  newCost: StartupCost;
+  activeTab: string;
+}
+
 export function StartupCostCalculator() {
-  const [costs, setCosts] = useState<StartupCost[]>([])
-  const [newCost, setNewCost] = useState<StartupCost>({
-    name: '',
-    amount: 0,
-    category: 'oneTime'
+  const [costData, setCostData] = useCalculatorData<StartupCostData>('startup-cost', {
+    costs: [],
+    newCost: {
+      name: '',
+      amount: 0,
+      category: 'oneTime',
+      description: ''
+    },
+    activeTab: 'input'
   })
 
-  const addCost = () => {
-    if (newCost.name && newCost.amount > 0) {
-      setCosts([...costs, newCost])
-      setNewCost({
+  // Explicitly reference costData to satisfy linter
+  console.log('Current cost data:', costData)
+
+  const handleAddCost = () => {
+    const { name, amount, category, description } = costData.newCost
+    
+    // Improved validation
+    if (!name.trim()) {
+      // Consider adding a toast or error notification
+      return
+    }
+    
+    if (amount <= 0) {
+      // Consider adding a toast or error notification
+      return
+    }
+
+    setCostData({
+      ...costData,
+      costs: [...costData.costs, { name, amount, category, description }],
+      newCost: {
         name: '',
         amount: 0,
-        category: 'oneTime'
-      })
-    }
+        category: 'oneTime',
+        description: ''
+      }
+    })
   }
 
-  const calculateTotals = () => {
-    return {
-      oneTime: costs.filter(c => c.category === 'oneTime')
-        .reduce((sum, cost) => sum + cost.amount, 0),
-      monthly: costs.filter(c => c.category === 'monthly')
-        .reduce((sum, cost) => sum + cost.amount, 0),
-      inventory: costs.filter(c => c.category === 'inventory')
-        .reduce((sum, cost) => sum + cost.amount, 0)
-    }
+  const handleRemoveCost = (index: number) => {
+    setCostData({
+      ...costData,
+      costs: costData.costs.filter((_, i) => i !== index)
+    })
   }
 
-  const totals = calculateTotals()
-  const totalStartupCost = totals.oneTime + (totals.monthly * 6) + totals.inventory
-  const recommendedBuffer = totalStartupCost * 0.2
+  const handleNewCostChange = (
+    field: keyof Pick<StartupCost, 'name' | 'amount' | 'category' | 'description'>, 
+    value: string | number
+  ) => {
+    setCostData({
+      ...costData,
+      newCost: {
+        ...costData.newCost,
+        [field]: value
+      }
+    })
+  }
 
-  const oneTimeCosts = costs.filter(c => c.category === 'oneTime')
-  const monthlyCosts = costs.filter(c => c.category === 'monthly')
-  const inventoryCosts = costs.filter(c => c.category === 'inventory')
+  const handleTabChange = (value: string): void => {
+    setCostData({
+      ...costData,
+      activeTab: value
+    })
+  }
 
-  const chartData = [
-    { name: 'One-Time Costs', value: oneTimeCosts.reduce((sum, cost) => sum + cost.amount, 0) },
-    { name: 'Monthly Costs', value: monthlyCosts.reduce((sum, cost) => sum + cost.amount, 0) * 6 },
-    { name: 'Initial Inventory', value: inventoryCosts.reduce((sum, cost) => sum + cost.amount, 0) }
-  ]
+  // Calculate totals
+  const totals = {
+    oneTime: costData.costs
+      .filter(cost => cost.category === 'oneTime')
+      .reduce((sum, cost) => sum + cost.amount, 0),
+    monthly: costData.costs
+      .filter(cost => cost.category === 'monthly')
+      .reduce((sum, cost) => sum + cost.amount, 0),
+    inventory: costData.costs
+      .filter(cost => cost.category === 'inventory')
+      .reduce((sum, cost) => sum + cost.amount, 0)
+  }
+
+  const totalStartupCost = totals.oneTime + totals.inventory
+  const monthlyOperatingCost = totals.monthly
+  const recommendedCashReserve = monthlyOperatingCost * 6 // 6 months reserve
+  const totalInitialCapital = totalStartupCost + recommendedCashReserve
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Startup Cost Calculator</h2>
+        <DataPersistence
+          data={costData}
+          onDataImport={setCostData}
+          dataType="startup-cost"
+        />
+      </div>
+
       <div className="flex justify-end gap-2">
         <SaveLoadState
           calculatorType="startup-cost"
-          currentState={{
-            costs,
-            totals: calculateTotals(),
-            recommendedBuffer: totalStartupCost * 0.2
-          }}
-          onLoadState={(state) => {
-            setCosts(state.costs)
-          }}
+          currentState={costData}
+          onLoadState={setCostData}
         />
         <ExportButton
           data={{
-            costs,
-            totals: calculateTotals(),
-            recommendedBuffer: totalStartupCost * 0.2,
-            totalRequired: totalStartupCost * 1.2,
-            chartData
+            costs: costData.costs,
+            totals,
+            summary: {
+              totalStartupCost,
+              monthlyOperatingCost,
+              recommendedCashReserve,
+              totalInitialCapital
+            },
+            filename: 'startup_costs.csv',
+            title: 'Startup Costs',
+            description: 'Detailed breakdown of startup costs and financial projections'
           }}
-          filename="startup-cost-estimate"
-          title="Startup Cost Estimate"
-          description="Detailed breakdown of startup costs and recommended buffer"
-          chartType="pie"
+          filename="startup_costs.csv"
+          title="Startup Costs"
+          description="Detailed breakdown of startup costs and financial projections"
         />
       </div>
-      <Card className="p-6">
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="costName">Cost Item</Label>
-              <Input
-                id="costName"
-                value={newCost.name}
-                onChange={e => setNewCost({...newCost, name: e.target.value})}
-                placeholder="Enter cost item name"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="amount">Amount ($)</Label>
-              <Input
-                id="amount"
-                type="number"
-                value={newCost.amount || ''}
-                onChange={e => setNewCost({...newCost, amount: parseFloat(e.target.value) || 0})}
-                placeholder="Enter amount"
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="category">Category</Label>
-              <select
-                id="category"
-                className="w-full rounded-md border border-input bg-background px-3 py-2"
-                value={newCost.category}
-                onChange={e => setNewCost({...newCost, category: e.target.value as StartupCost['category']})}
-              >
-                <option value="oneTime">One-Time Cost</option>
-                <option value="monthly">Monthly Cost</option>
-                <option value="inventory">Initial Inventory</option>
-              </select>
-            </div>
-          </div>
-          
-          <Button onClick={addCost} className="w-full">Add Cost</Button>
-        </div>
-      </Card>
 
-      <Tabs defaultValue="summary" className="w-full">
-        <TabsList>
-          <TabsTrigger value="summary">Summary</TabsTrigger>
-          <TabsTrigger value="details">Cost Details</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="summary">
-          <Card className="p-6">
-            <h3 className="text-xl font-semibold mb-4">Startup Cost Summary</h3>
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 bg-secondary rounded-lg">
-                  <span className="text-sm font-medium">One-Time Costs</span>
-                  <div className="text-lg font-bold mt-1">
-                    ${totals.oneTime.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                </div>
-                
-                <div className="p-4 bg-secondary rounded-lg">
-                  <span className="text-sm font-medium">Monthly Costs (6 months)</span>
-                  <div className="text-lg font-bold mt-1">
-                    ${(totals.monthly * 6).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                </div>
-                
-                <div className="p-4 bg-secondary rounded-lg">
-                  <span className="text-sm font-medium">Initial Inventory</span>
-                  <div className="text-lg font-bold mt-1">
-                    ${totals.inventory.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                </div>
-                
-                <div className="p-4 bg-primary/10 rounded-lg">
-                  <span className="text-sm font-medium">Total Startup Cost</span>
-                  <div className="text-xl font-bold mt-1">
-                    ${totalStartupCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-4 bg-secondary rounded-lg">
-                <h4 className="font-semibold mb-2">Recommended Emergency Fund</h4>
-                <div className="text-lg font-bold mb-2">
-                  ${recommendedBuffer.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-                <p className="text-sm">
-                  This buffer (20% of total startup cost) helps cover unexpected expenses and initial operating losses.
-                </p>
-              </div>
-            </div>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="details">
-          <Card className="p-6">
-            <h3 className="text-xl font-semibold mb-4">Cost Details</h3>
+      <Card className="p-6">
+        <Tabs value={costData.activeTab} onValueChange={handleTabChange}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="input">Cost Input</TabsTrigger>
+            <TabsTrigger value="summary">Cost Summary</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="input">
             <div className="space-y-4">
-              {costs.map((cost, index) => (
-                <div key={index} className="flex justify-between items-center p-4 bg-secondary rounded-lg">
-                  <div>
-                    <div className="font-semibold">{cost.name}</div>
-                    <div className="text-sm text-muted-foreground">{cost.category}</div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <Label htmlFor="name">Cost Item</Label>
+                  <Input
+                    id="name"
+                    value={costData.newCost.name}
+                    onChange={(e) => handleNewCostChange('name', e.target.value)}
+                    placeholder="Enter cost item name"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="amount">Amount ($)</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    value={costData.newCost.amount || ''}
+                    onChange={(e) => handleNewCostChange('amount', parseFloat(e.target.value) || 0)}
+                    placeholder="Enter amount"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="category">Category</Label>
+                  <select
+                    id="category"
+                    className="w-full px-3 py-2 border rounded-md"
+                    value={costData.newCost.category}
+                    onChange={(e) => handleNewCostChange('category', e.target.value as StartupCost['category'])}
+                  >
+                    <option value="oneTime">One-Time Cost</option>
+                    <option value="monthly">Monthly Cost</option>
+                    <option value="inventory">Initial Inventory</option>
+                  </select>
+                </div>
+
+                <div className="flex items-end">
+                  <Button onClick={handleAddCost} className="w-full">Add Cost</Button>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold mb-4">Cost Items</h3>
+                <div className="space-y-2">
+                  {costData.costs.map((cost, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-secondary rounded-lg">
+                      <div>
+                        <span className="font-medium">{cost.name}</span>
+                        <span className="text-sm text-muted-foreground ml-2">
+                          ({cost.category === 'oneTime' ? 'One-Time' : 
+                            cost.category === 'monthly' ? 'Monthly' : 'Inventory'})
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span>${cost.amount.toLocaleString()}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveCost(index)}
+                          className="text-destructive"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="summary">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="p-4">
+                  <h3 className="font-semibold">One-Time Costs</h3>
+                  <p className="text-2xl mt-2">${totals.oneTime.toLocaleString()}</p>
+                </Card>
+
+                <Card className="p-4">
+                  <h3 className="font-semibold">Monthly Operating Costs</h3>
+                  <p className="text-2xl mt-2">${totals.monthly.toLocaleString()}</p>
+                </Card>
+
+                <Card className="p-4">
+                  <h3 className="font-semibold">Initial Inventory</h3>
+                  <p className="text-2xl mt-2">${totals.inventory.toLocaleString()}</p>
+                </Card>
+              </div>
+
+              <Card className="p-6">
+                <h3 className="text-xl font-semibold mb-4">Financial Summary</h3>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span>Total Startup Cost</span>
+                    <span className="font-semibold">${totalStartupCost.toLocaleString()}</span>
                   </div>
-                  <div className="text-lg font-bold">
-                    ${cost.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <div className="flex justify-between items-center">
+                    <span>Monthly Operating Cost</span>
+                    <span className="font-semibold">${monthlyOperatingCost.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <TooltipProvider>
+                      <UITooltip>
+                        <TooltipTrigger className="flex items-center gap-1">
+                          Recommended Cash Reserve
+                          <AlertCircle className="h-4 w-4" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>6 months of operating costs</p>
+                        </TooltipContent>
+                      </UITooltip>
+                    </TooltipProvider>
+                    <span className="font-semibold">${recommendedCashReserve.toLocaleString()}</span>
+                  </div>
+                  <div className="pt-4 border-t">
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold">Total Initial Capital Required</span>
+                      <span className="text-xl font-bold">${totalInitialCapital.toLocaleString()}</span>
+                    </div>
                   </div>
                 </div>
-              ))}
-              {costs.length === 0 && (
-                <p className="text-muted-foreground">No costs added yet</p>
-              )}
+              </Card>
             </div>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          </TabsContent>
+        </Tabs>
+      </Card>
     </div>
   )
 }

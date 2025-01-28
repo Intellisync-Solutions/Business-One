@@ -1,241 +1,226 @@
-import { useState } from 'react'
-import { Card } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
-import { useToast } from "@/components/ui/use-toast"
-import { 
+import React from 'react';
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Calculator, RotateCcw } from "lucide-react";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Info } from 'lucide-react'
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { cn } from "@/lib/utils";
+import { RatioInterpretation, RatioInterpretationData } from './RatioInterpretation'
 
 interface RatioCalculatorProps {
-  title: string
-  description: string
+  title: string;
+  description: string;
+  interpretation: RatioInterpretationData;
   inputs: Array<{
-    name: string
-    label: string
-    placeholder?: string
-    tooltip?: string
-    min?: number
-    max?: number
-    required?: boolean
-  }>
-  calculate: (values: Record<string, number>) => number
-  interpretation: {
-    good: string
-    bad: string
-    context?: string
-  }
-  data: Record<string, number>
-  onDataChange?: (data: Record<string, number>) => void
-  formatResult?: (value: number) => string
+    name: string;
+    label: string;
+    placeholder: string;
+    tooltip: string;
+    min: number;
+    required: boolean;
+  }>;
+  calculate: (values: Record<string, number>) => number;
+  formatResult: (value: number) => string;
+  onCalculate?: (result: number) => void;
 }
 
-export function RatioCalculator({
+export const RatioCalculator = ({
   title,
   description,
+  interpretation,
   inputs,
   calculate,
-  interpretation,
-  data,
-  onDataChange,
-  formatResult = (value) => value.toFixed(2)
-}: RatioCalculatorProps) {
-  const [result, setResult] = useState<number | null>(null)
-  const [showResult, setShowResult] = useState(false)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const { toast } = useToast()
-
-  const validateInput = (name: string, value: string): string | null => {
-    if (!value && inputs.find(input => input.name === name)?.required !== false) {
-      return "This field is required"
-    }
-
-    const numValue = parseFloat(value)
-    if (isNaN(numValue)) {
-      return "Please enter a valid number"
-    }
-
-    const input = inputs.find(input => input.name === name)
-    if (input?.min !== undefined && numValue < input.min) {
-      return `Value must be at least ${input.min}`
-    }
-    if (input?.max !== undefined && numValue > input.max) {
-      return `Value must be no more than ${input.max}`
-    }
-
-    return null
-  }
+  formatResult,
+  onCalculate
+}: RatioCalculatorProps) => {
+  const [values, setValues] = React.useState<Record<string, string>>({});
+  const [result, setResult] = React.useState<number | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
 
   const handleInputChange = (name: string, value: string) => {
-    // Clear previous error for this field
-    const newErrors = { ...errors }
-    delete newErrors[name]
-    setErrors(newErrors)
-
-    // Validate input
-    const error = validateInput(name, value)
-    if (error) {
-      setErrors({ ...newErrors, [name]: error })
-      return
-    }
-
-    // Update data if validation passes
-    const numValue = value === '' ? undefined : parseFloat(value)
-    const newData = { ...data }
-    if (numValue !== undefined) {
-      newData[name] = numValue
-    } else {
-      delete newData[name]
-    }
-    onDataChange?.(newData)
-    setShowResult(false)
-  }
+    setValues(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    setError(null);
+  };
 
   const handleCalculate = () => {
-    // Validate all inputs
-    const newErrors: Record<string, string> = {}
-    let hasErrors = false
+    // Validate required fields
+    const missingFields = inputs
+      .filter(input => input.required && (!values[input.name] || values[input.name].trim() === ''))
+      .map(input => input.label);
 
-    inputs.forEach(input => {
-      const value = data[input.name]?.toString() || ''
-      const error = validateInput(input.name, value)
-      if (error) {
-        newErrors[input.name] = error
-        hasErrors = true
+    if (missingFields.length > 0) {
+      setError(`Please fill in the following required fields: ${missingFields.join(', ')}`);
+      return;
+    }
+
+    // Convert values to numbers and validate
+    const numericValues: Record<string, number> = {};
+    for (const input of inputs) {
+      const value = parseFloat(values[input.name] || '0');
+      
+      if (isNaN(value)) {
+        setError(`Invalid number entered for ${input.label}`);
+        return;
       }
-    })
 
-    if (hasErrors) {
-      setErrors(newErrors)
-      toast({
-        title: "Validation Error",
-        description: "Please correct the errors before calculating",
-        variant: "destructive"
-      })
-      return
+      if (value < input.min) {
+        setError(`${input.label} must be at least ${input.min}`);
+        return;
+      }
+
+      numericValues[input.name] = value;
     }
 
     try {
-      const calculatedResult = calculate(data)
-      
-      // Validate the result
-      if (isNaN(calculatedResult) || !isFinite(calculatedResult)) {
-        toast({
-          title: "Calculation Error",
-          description: "The calculation resulted in an invalid value. Please check your inputs.",
-          variant: "destructive"
-        })
-        return
-      }
-
-      setResult(calculatedResult)
-      setShowResult(true)
+      const calculatedResult = calculate(numericValues);
+      setResult(calculatedResult);
+      onCalculate?.(calculatedResult);
+      setError(null);
     } catch (error) {
-      toast({
-        title: "Calculation Error",
-        description: "An error occurred during calculation. Please check your inputs.",
-        variant: "destructive"
-      })
+      setError(error instanceof Error ? error.message : 'Calculation error occurred');
     }
-  }
+  };
+
+  const handleReset = () => {
+    setValues({});
+    setResult(null);
+    setError(null);
+  };
+
+  const isFormValid = () => {
+    return inputs.every(input => !input.required || values[input.name] && values[input.name].trim() !== '');
+  };
+
+  const showInterpretation = result !== null;
 
   return (
-    <Card className="p-6 mb-6">
-      <div className="flex justify-between items-center mb-4">
+    <Card className="w-full max-w-md">
+      <CardContent className="space-y-4 p-6">
         <div>
-          <h3 className="text-lg font-semibold">{title}</h3>
-          <p className="text-sm text-muted-foreground">{description}</p>
+          <h2 className="text-xl font-bold mb-2">{title}</h2>
+          <p className="text-muted-foreground">{description}</p>
         </div>
-      </div>
-
-      <div className="grid gap-4">
+        
         {inputs.map((input) => (
-          <div key={input.name}>
-            <div className="flex items-center gap-2">
-              <Label>
-                {input.label}
-                {input.required !== false && <span className="text-red-500">*</span>}
-              </Label>
-              {input.tooltip && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{input.tooltip}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </div>
+          <div key={input.name} className="space-y-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Label htmlFor={input.name} className="flex items-center gap-1 cursor-help">
+                    {input.label}
+                    {input.required && <span className="text-red-500">*</span>}
+                  </Label>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="max-w-xs">{input.tooltip}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <Input
+              id={input.name}
               type="number"
               placeholder={input.placeholder}
-              value={data[input.name] || ''}
-              onChange={(e) => handleInputChange(input.name, e.target.value)}
               min={input.min}
-              max={input.max}
-              step="0.01"
-              className={errors[input.name] ? "border-red-500" : ""}
+              value={values[input.name] || ''}
+              onChange={(e) => handleInputChange(input.name, e.target.value)}
+              required={input.required}
+              className={cn(
+                "transition-colors",
+                error && !values[input.name] && input.required && "border-red-500 focus-visible:ring-red-500"
+              )}
             />
-            {errors[input.name] && (
-              <p className="text-sm text-red-500 mt-1">{errors[input.name]}</p>
-            )}
           </div>
         ))}
-
-        <div className="flex gap-2">
-          <Button onClick={handleCalculate} className="mt-2">
-            Calculate
-          </Button>
-          <Button 
-            onClick={() => {
-              const clearedData = Object.fromEntries(inputs.map(input => [input.name, 0]))
-              onDataChange?.(clearedData)
-              setShowResult(false)
-              setErrors({})
-            }} 
-            variant="outline" 
-            className="mt-2"
-          >
-            Clear
-          </Button>
-        </div>
-
-        {showResult && result !== null && (
-          <div className="mt-4 space-y-4">
-            <div className="p-4 bg-secondary rounded-lg">
-              <div className="text-sm font-medium mb-1">Result</div>
-              <div className="text-2xl font-bold">
-                {formatResult(result)}
+        
+        <Button 
+          onClick={handleCalculate} 
+          disabled={!isFormValid()}
+          className="w-full"
+        >
+          <Calculator className="w-4 h-4 mr-2" />
+          Calculate
+        </Button>
+        
+        {error && (
+          <div className="text-red-500 text-sm">{error}</div>
+        )}
+        
+        {result !== null && (
+          <div className="mt-4">
+            <h3 className="text-lg font-semibold">Result: {formatResult(result)}</h3>
+            {showInterpretation && (
+              <div className="mt-4 p-4 bg-background rounded-lg border">
+                <RatioInterpretation data={interpretation} />
               </div>
-            </div>
-
-            <Alert className={result > 0 ? "bg-green-50/50 border-green-200" : "bg-red-50/50 border-red-200"}>
-              <AlertTitle className="font-semibold">
-                {result > 0 ? "Positive Indicator" : "Attention Needed"}
-              </AlertTitle>
-              <AlertDescription>
-                <div className="text-sm font-medium mt-2">
-                  {result > 0 ? interpretation.good : interpretation.bad}
-                </div>
-                {interpretation.context && (
-                  <div className="text-sm mt-2">
-                    {interpretation.context}
-                  </div>
-                )}
-              </AlertDescription>
-            </Alert>
+            )}
           </div>
         )}
-      </div>
+        
+        <Button
+          variant="outline"
+          onClick={handleReset}
+          className="px-3"
+        >
+          <RotateCcw className="w-4 h-4" />
+        </Button>
+      </CardContent>
     </Card>
-  )
-}
+  );
+};
+
+// Example usage:
+const ratioCalculatorProps = {
+  title: "Current Ratio Calculator",
+  description: "Calculate your company's current ratio to assess its short-term financial health.",
+  interpretation: {
+    good: "A current ratio above 1.5 indicates good short-term liquidity",
+    bad: "A current ratio below 1.0 suggests potential liquidity problems",
+    context: "The current ratio measures a company's ability to pay short-term obligations",
+    insights: [
+      {
+        title: "Key Considerations",
+        points: [
+          "Industry standards vary significantly",
+          "Too high might indicate inefficient use of assets",
+          "Consider alongside other liquidity ratios"
+        ]
+      }
+    ],
+    warningSignals: [
+      "Sudden drops in current ratio",
+      "Consistent downward trend",
+      "Ratio falling below industry average"
+    ]
+  },
+  inputs: [
+    {
+      name: "currentAssets",
+      label: "Current Assets",
+      placeholder: "Enter current assets",
+      tooltip: "Total value of assets that can be converted to cash within one year.",
+      min: 0,
+      required: true,
+    },
+    {
+      name: "currentLiabilities",
+      label: "Current Liabilities",
+      placeholder: "Enter current liabilities",
+      tooltip: "Total value of liabilities that need to be paid within one year.",
+      min: 0,
+      required: true,
+    },
+  ],
+  calculate: (values: Record<string, number>) => values.currentAssets / values.currentLiabilities,
+  formatResult: (value: number) => value.toFixed(2),
+};
+
+<RatioCalculator {...ratioCalculatorProps} />

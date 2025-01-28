@@ -9,6 +9,8 @@ import { SaveLoadState } from "@/components/common/SaveLoadState"
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { HelpCircle } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DataPersistence } from '@/components/common/DataPersistence'
+import { useLocalStorage } from '@/hooks/useLocalStorage'
 
 type CalculationMode = 'standard' | 'findPrice' | 'findUnits' | 'profitTarget'
 
@@ -34,13 +36,10 @@ interface CalculationResult {
 }
 
 export function BreakEvenCalculator() {
-  const [data, setData] = useState<BreakEvenData>({
+  const [breakEvenData, setBreakEvenData] = useLocalStorage<BreakEvenData>('break-even-analysis', {
     fixedCosts: 0,
     variableCostPerUnit: 0,
     sellingPricePerUnit: 0,
-    targetUnits: 0,
-    targetProfit: 0,
-    targetProfitPercentage: 0,
     profitInputMode: 'fixed',
     mode: 'standard'
   })
@@ -59,7 +58,7 @@ export function BreakEvenCalculator() {
       targetProfitPercentage,
       profitInputMode,
       mode 
-    } = data
+    } = breakEvenData
     let result: CalculationResult = {}
 
     switch (mode) {
@@ -155,8 +154,8 @@ export function BreakEvenCalculator() {
     const maxUnits = result.breakEvenUnits ? Math.ceil(result.breakEvenUnits * 2) : 0
     
     for (let units = 0; units <= maxUnits; units += Math.ceil(maxUnits / 10)) {
-      const totalRevenue = units * (data.sellingPricePerUnit || (result.requiredPrice || 0))
-      const totalCosts = data.fixedCosts + (units * data.variableCostPerUnit)
+      const totalRevenue = units * (breakEvenData.sellingPricePerUnit || (result.requiredPrice || 0))
+      const totalCosts = breakEvenData.fixedCosts + (units * breakEvenData.variableCostPerUnit)
       const profit = totalRevenue - totalCosts
       
       chartPoints.push({
@@ -175,11 +174,11 @@ export function BreakEvenCalculator() {
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const value = parseFloat(e.target.value) || 0
-    setData(prev => ({ ...prev, [field]: value }))
+    setBreakEvenData(prev => ({ ...prev, [field]: value }))
   }
 
   const handleModeChange = (mode: CalculationMode) => {
-    setData(prev => ({ ...prev, mode }))
+    setBreakEvenData(prev => ({ ...prev, mode }))
   }
 
   const enhancedChartData = breakEvenPoints.map(point => ({
@@ -191,21 +190,29 @@ export function BreakEvenCalculator() {
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Break-Even Calculator</h2>
+        <DataPersistence
+          data={breakEvenData}
+          onDataImport={setBreakEvenData}
+          dataType="break-even-analysis"
+        />
+      </div>
       <div className="flex justify-end gap-2">
         <SaveLoadState
           calculatorType="break-even"
           currentState={{
-            fixedCosts: data.fixedCosts,
-            variableCosts: data.variableCostPerUnit,
-            sellingPrice: data.sellingPricePerUnit,
-            targetUnits: data.targetUnits,
-            targetProfit: data.targetProfit,
-            targetProfitPercentage: data.targetProfitPercentage,
-            profitInputMode: data.profitInputMode,
-            mode: data.mode
+            fixedCosts: breakEvenData.fixedCosts,
+            variableCosts: breakEvenData.variableCostPerUnit,
+            sellingPrice: breakEvenData.sellingPricePerUnit,
+            targetUnits: breakEvenData.targetUnits,
+            targetProfit: breakEvenData.targetProfit,
+            targetProfitPercentage: breakEvenData.targetProfitPercentage,
+            profitInputMode: breakEvenData.profitInputMode,
+            mode: breakEvenData.mode
           }}
           onLoadState={(state) => {
-            setData(prev => ({ ...prev, 
+            setBreakEvenData(prev => ({ ...prev, 
               fixedCosts: state.fixedCosts,
               variableCostPerUnit: state.variableCosts,
               sellingPricePerUnit: state.sellingPrice,
@@ -246,7 +253,7 @@ export function BreakEvenCalculator() {
               <Input
                 id="fixedCosts"
                 type="number"
-                value={data.fixedCosts || ''}
+                value={breakEvenData.fixedCosts || ''}
                 onChange={handleInputChange('fixedCosts')}
                 placeholder="Enter total fixed costs"
               />
@@ -269,7 +276,7 @@ export function BreakEvenCalculator() {
               <Input
                 id="variableCost"
                 type="number"
-                value={data.variableCostPerUnit || ''}
+                value={breakEvenData.variableCostPerUnit || ''}
                 onChange={handleInputChange('variableCostPerUnit')}
                 placeholder="Enter variable cost per unit"
               />
@@ -292,7 +299,7 @@ export function BreakEvenCalculator() {
               <Input
                 id="sellingPrice"
                 type="number"
-                value={data.sellingPricePerUnit || ''}
+                value={breakEvenData.sellingPricePerUnit || ''}
                 onChange={handleInputChange('sellingPricePerUnit')}
                 placeholder="Enter selling price per unit"
               />
@@ -318,7 +325,7 @@ export function BreakEvenCalculator() {
                   </UITooltip>
                 </TooltipProvider>
               </div>
-              <Select value={data.mode} onValueChange={handleModeChange}>
+              <Select value={breakEvenData.mode} onValueChange={handleModeChange}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -331,7 +338,7 @@ export function BreakEvenCalculator() {
               </Select>
             </div>
 
-            {data.mode === 'findPrice' && (
+            {breakEvenData.mode === 'findPrice' && (
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <Label htmlFor="targetUnits">Target Units</Label>
@@ -339,14 +346,14 @@ export function BreakEvenCalculator() {
                 <Input
                   id="targetUnits"
                   type="number"
-                  value={data.targetUnits || ''}
+                  value={breakEvenData.targetUnits || ''}
                   onChange={handleInputChange('targetUnits')}
                   placeholder="Enter target units"
                 />
               </div>
             )}
 
-            {data.mode === 'profitTarget' && (
+            {breakEvenData.mode === 'profitTarget' && (
               <div className="space-y-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
@@ -365,9 +372,9 @@ export function BreakEvenCalculator() {
                     </TooltipProvider>
                   </div>
                   <Select 
-                    value={data.profitInputMode} 
+                    value={breakEvenData.profitInputMode} 
                     onValueChange={(value: 'fixed' | 'percentage') => 
-                      setData(prev => ({ ...prev, profitInputMode: value }))
+                      setBreakEvenData(prev => ({ ...prev, profitInputMode: value }))
                     }
                   >
                     <SelectTrigger>
@@ -380,7 +387,7 @@ export function BreakEvenCalculator() {
                   </Select>
                 </div>
 
-                {data.profitInputMode === 'fixed' ? (
+                {breakEvenData.profitInputMode === 'fixed' ? (
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <Label htmlFor="targetProfit">Target Profit Amount</Label>
@@ -398,7 +405,7 @@ export function BreakEvenCalculator() {
                     <Input
                       id="targetProfit"
                       type="number"
-                      value={data.targetProfit || ''}
+                      value={breakEvenData.targetProfit || ''}
                       onChange={handleInputChange('targetProfit')}
                       placeholder="Enter target profit amount"
                     />
@@ -424,7 +431,7 @@ export function BreakEvenCalculator() {
                       type="number"
                       min="0"
                       max="100"
-                      value={data.targetProfitPercentage || ''}
+                      value={breakEvenData.targetProfitPercentage || ''}
                       onChange={handleInputChange('targetProfitPercentage')}
                       placeholder="Enter target profit percentage"
                     />

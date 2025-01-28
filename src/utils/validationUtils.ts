@@ -17,7 +17,10 @@ export interface FieldValidation {
 }
 
 export interface ValidationConfig {
-  [key: string]: FieldValidation;
+  [key: string]: {
+    validation: FieldValidation;
+    rules?: ValidationRule[];
+  };
 }
 
 export function validateField(value: any, validation: FieldValidation): ValidationResult {
@@ -83,9 +86,16 @@ export function validateForm<T extends object>(
 
   for (const [field, validation] of Object.entries(config)) {
     if (field in data) {
-      const result = validateField(data[field as keyof T], validation);
+      const result = validateField(data[field as keyof T], validation.validation);
       if (!result.isValid && result.message) {
         errors[field as keyof T] = result.message;
+      }
+      if (validation.rules) {
+        for (const rule of validation.rules) {
+          if (!rule.test(data[field as keyof T])) {
+            errors[field as keyof T] = rule.message;
+          }
+        }
       }
     }
   }
@@ -96,42 +106,78 @@ export function validateForm<T extends object>(
 // Common validation configurations
 export const commonValidations = {
   positiveNumber: {
-    required: true,
-    min: 0,
-    pattern: /^\d*\.?\d*$/,
-    custom: [{
-      test: (value: any) => !isNaN(value) && Number.isFinite(Number(value)),
-      message: 'Must be a valid number'
-    }]
+    validation: {
+      required: true,
+      min: 0,
+      pattern: /^\d*\.?\d*$/,
+      custom: [{
+        test: (value: any) => !isNaN(value) && Number.isFinite(Number(value)),
+        message: 'Must be a valid number'
+      }]
+    },
+    rules: []
   },
   
   percentage: {
-    required: true,
-    min: 0,
-    max: 100,
-    pattern: /^\d*\.?\d*$/,
-    custom: [{
-      test: (value: any) => !isNaN(value) && Number.isFinite(Number(value)),
-      message: 'Must be a valid percentage'
-    }]
+    validation: {
+      required: true,
+      min: 0,
+      max: 100,
+      pattern: /^\d*\.?\d*$/,
+      custom: [{
+        test: (value: any) => !isNaN(value) && Number.isFinite(Number(value)),
+        message: 'Must be a valid percentage'
+      }]
+    },
+    rules: []
   },
   
   currency: {
-    required: true,
-    min: 0,
-    pattern: /^\d*\.?\d{0,2}$/,
-    custom: [{
-      test: (value: any) => !isNaN(value) && Number.isFinite(Number(value)),
-      message: 'Must be a valid currency amount'
-    }]
+    validation: {
+      required: true,
+      min: 0,
+      pattern: /^\d*\.?\d{0,2}$/,
+      custom: [{
+        test: (value: any) => !isNaN(value) && Number.isFinite(Number(value)),
+        message: 'Must be a valid currency amount'
+      }]
+    },
+    rules: []
   },
   
   integer: {
-    required: true,
-    pattern: /^\d+$/,
-    custom: [{
-      test: (value: any) => Number.isInteger(Number(value)),
-      message: 'Must be a whole number'
-    }]
-  }
+    validation: {
+      required: true,
+      pattern: /^\d+$/,
+      custom: [{
+        test: (value: any) => Number.isInteger(Number(value)),
+        message: 'Must be a whole number'
+      }]
+    },
+    rules: []
+  },
+  
+  number: {
+    validation: {
+      required: true,
+      custom: [{
+        test: (value: any) => !isNaN(value) && Number.isFinite(Number(value)),
+        message: 'Must be a valid number'
+      }]
+    },
+    rules: []
+  },
+  
+  percentageRange: {
+    validation: {
+      required: true,
+      min: 0,
+      max: 100,
+      custom: [{
+        test: (value: any) => !isNaN(value) && Number.isFinite(Number(value)),
+        message: 'Must be a valid percentage between 0 and 100'
+      }]
+    },
+    rules: []
+  },
 };

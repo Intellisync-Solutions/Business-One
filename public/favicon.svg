@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" rx="100" fill="#0f172a"/>
+  
+  <!-- Main icon - stylized "I" for Intellisync -->
+  <path d="M256 96C238.327 96 224 110.327 224 128V384C224 401.673 238.327 416 256 416C273.673 416 288 401.673 288 384V128C288 110.327 273.673 96 256 96Z" fill="#ffffff"/>
+  
+  <!-- Circular elements representing sync/connection -->
+  <path d="M256 64C176.471 64 112 128.471 112 208C112 225.673 126.327 240 144 240C161.673 240 176 225.673 176 208C176 164.471 211.471 128 256 128C273.673 128 288 113.673 288 96C288 78.327 273.673 64 256 64Z" fill="#38bdf8"/>
+  <path d="M256 448C335.529 448 400 383.529 400 304C400 286.327 385.673 272 368 272C350.327 272 336 286.327 336 304C336 347.529 300.529 384 256 384C238.327 384 224 398.327 224 416C224 433.673 238.327 448 256 448Z" fill="#38bdf8"/>
+  
+  <!-- Optional: Add a subtle glow effect -->
+  <defs>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feOffset dx="0" dy="0" result="offsetBlur"/>
+      <feMerge>
+        <feMergeNode in="offsetBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+</svg>

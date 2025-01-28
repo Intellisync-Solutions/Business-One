@@ -11,17 +11,31 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell
 } from 'recharts'
 import { ExportButton } from "@/components/common/ExportButton"
 import { SaveLoadState } from "@/components/common/SaveLoadState"
-import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import { 
+  Tooltip as UITooltip, 
+  TooltipContent, 
+  TooltipProvider, 
+  TooltipTrigger 
+} from "@/components/ui/tooltip"
+import { AlertCircle } from "lucide-react"
+import { DataPersistence } from '@/components/common/DataPersistence'
+
 
 interface ScenarioMetrics {
   revenue: number;
   costs: number;
   marketShare: number;
   customerGrowth: number;
+  baselineClients: number;
   operatingExpenses: number;
   profitMargin: number;
   expectedRevenue: number;
@@ -36,113 +50,170 @@ interface Scenario {
   probability: number;
 }
 
+interface ScenarioData {
+  scenarios: {
+    base: Scenario;
+    optimistic: Scenario;
+    pessimistic: Scenario;
+  };
+  activeTab: string;
+  metrics: {
+    expectedRevenue: number;
+    expectedProfit: number;
+    marketShareRange: {
+      min: number;
+      max: number;
+    };
+    customerGrowthRange: {
+      min: number;
+      max: number;
+    };
+  };
+}
+
+const initialBaseScenario: Scenario = {
+  id: 'base',
+  name: 'Base Case',
+  description: 'Expected business performance under normal conditions',
+  metrics: {
+    revenue: 0,
+    costs: 0,
+    marketShare: 0,
+    customerGrowth: 0,
+    baselineClients: 0,
+    operatingExpenses: 0,
+    profitMargin: 0,
+    expectedRevenue: 0,
+    expectedProfit: 0
+  },
+  probability: 60
+}
+
+const initialOptimisticScenario: Scenario = {
+  id: 'optimistic',
+  name: 'Optimistic Case',
+  description: 'Potential business performance under highly favorable conditions',
+  metrics: {
+    revenue: 0,
+    costs: 0,
+    marketShare: 0,
+    customerGrowth: 0,
+    baselineClients: 0,
+    operatingExpenses: 0,
+    profitMargin: 0,
+    expectedRevenue: 0,
+    expectedProfit: 0
+  },
+  probability: 25
+}
+
+const initialPessimisticScenario: Scenario = {
+  id: 'pessimistic',
+  name: 'Pessimistic Case',
+  description: 'Potential business performance under challenging conditions',
+  metrics: {
+    revenue: 0,
+    costs: 0,
+    marketShare: 0,
+    customerGrowth: 0,
+    baselineClients: 0,
+    operatingExpenses: 0,
+    profitMargin: 0,
+    expectedRevenue: 0,
+    expectedProfit: 0
+  },
+  probability: 15
+}
+
 export function ScenarioPlannerCalculator() {
-  const [scenarios, setScenarios] = useState<Scenario[]>([
-    {
-      id: 'base',
-      name: 'Base Case',
-      description: 'Expected business performance under normal conditions',
-      metrics: {
-        revenue: 0,
-        costs: 0,
-        marketShare: 0,
-        customerGrowth: 0,
-        operatingExpenses: 0,
-        profitMargin: 0,
-        expectedRevenue: 0,
-        expectedProfit: 0
-      },
-      probability: 60
+  const [scenarioData, setScenarioData] = useState<ScenarioData>({
+    scenarios: {
+      base: initialBaseScenario,
+      optimistic: initialOptimisticScenario,
+      pessimistic: initialPessimisticScenario
     },
-    {
-      id: 'optimistic',
-      name: 'Optimistic',
-      description: 'Best-case scenario with favorable market conditions',
-      metrics: {
-        revenue: 0,
-        costs: 0,
-        marketShare: 0,
-        customerGrowth: 0,
-        operatingExpenses: 0,
-        profitMargin: 0,
-        expectedRevenue: 0,
-        expectedProfit: 0
+    activeTab: 'base',
+    metrics: {
+      expectedRevenue: 0,
+      expectedProfit: 0,
+      marketShareRange: {
+        min: 0,
+        max: 0
       },
-      probability: 20
-    },
-    {
-      id: 'pessimistic',
-      name: 'Pessimistic',
-      description: 'Worst-case scenario with challenging conditions',
-      metrics: {
-        revenue: 0,
-        costs: 0,
-        marketShare: 0,
-        customerGrowth: 0,
-        operatingExpenses: 0,
-        profitMargin: 0,
-        expectedRevenue: 0,
-        expectedProfit: 0
-      },
-      probability: 20
+      customerGrowthRange: {
+        min: 0,
+        max: 0
+      }
     }
-  ])
+  })
 
-  const [activeScenario, setActiveScenario] = useState<string>('base')
-
-  const updateScenarioMetric = (scenarioId: string, metric: keyof ScenarioMetrics, value: number) => {
-    setScenarios(scenarios.map(scenario => 
-      scenario.id === scenarioId
-        ? {
-            ...scenario,
-            metrics: {
-              ...scenario.metrics,
-              [metric]: value
-            }
-          }
-        : scenario
-    ))
+  const updateMetrics = (
+    type: 'base' | 'optimistic' | 'pessimistic', 
+    field: keyof ScenarioMetrics, 
+    value: number
+  ) => {
+    setScenarioData((prev) => {
+      const updatedScenarios = { ...prev.scenarios }
+      updatedScenarios[type] = {
+        ...updatedScenarios[type],
+        metrics: {
+          ...updatedScenarios[type].metrics,
+          [field]: value
+        }
+      }
+      return { 
+        ...prev, 
+        scenarios: updatedScenarios,
+        [type]: updatedScenarios[type]
+      }
+    })
   }
 
-  const updateScenarioProbability = (scenarioId: string, probability: number) => {
-    // Adjust other probabilities proportionally
-    const currentScenario = scenarios.find(s => s.id === scenarioId)
-    const oldProbability = currentScenario?.probability || 0
-    const difference = probability - oldProbability
-    
-    const otherScenarios = scenarios.filter(s => s.id !== scenarioId)
-    const totalOtherProbability = otherScenarios.reduce((sum, s) => sum + s.probability, 0)
-    
-    setScenarios(scenarios.map(scenario => {
-      if (scenario.id === scenarioId) {
-        return { ...scenario, probability }
-      }
-      const adjustmentFactor = totalOtherProbability ? (scenario.probability / totalOtherProbability) : 1
-      return {
-        ...scenario,
-        probability: Math.max(0, scenario.probability - (difference * adjustmentFactor))
+  const updateProbability = (
+    type: 'base' | 'optimistic' | 'pessimistic',
+    value: number
+  ) => {
+    setScenarioData((prev) => ({
+      ...prev,
+      scenarios: {
+        ...prev.scenarios,
+        [type]: {
+          ...prev.scenarios[type],
+          probability: value
+        }
+      },
+      [type]: {
+        ...prev.scenarios[type],
+        probability: value
       }
     }))
   }
 
+  const handleTabChange = (value: string) => {
+    setScenarioData((prev) => ({
+      ...prev,
+      activeTab: value
+    }))
+  }
+
   const calculateMetrics = () => {
-    const expectedRevenue = scenarios.reduce((sum, scenario) => 
+    const expectedRevenue = [scenarioData.scenarios.base, scenarioData.scenarios.optimistic, scenarioData.scenarios.pessimistic].reduce((sum, scenario) => 
       sum + (scenario.metrics.revenue * (scenario.probability / 100)), 0
     )
 
-    const expectedProfit = scenarios.reduce((sum, scenario) => 
+    const expectedProfit = [scenarioData.scenarios.base, scenarioData.scenarios.optimistic, scenarioData.scenarios.pessimistic].reduce((sum, scenario) => 
       sum + ((scenario.metrics.revenue - scenario.metrics.costs - scenario.metrics.operatingExpenses) 
       * (scenario.probability / 100)), 0
     )
 
     const marketShareRange = {
-      min: Math.min(...scenarios.map(s => s.metrics.marketShare)),
-      max: Math.max(...scenarios.map(s => s.metrics.marketShare))
+      min: Math.min(...[scenarioData.scenarios.base, scenarioData.scenarios.optimistic, scenarioData.scenarios.pessimistic].map(s => s.metrics.marketShare)),
+      max: Math.max(...[scenarioData.scenarios.base, scenarioData.scenarios.optimistic, scenarioData.scenarios.pessimistic].map(s => s.metrics.marketShare))
     }
 
     const customerGrowthRange = {
-      min: Math.min(...scenarios.map(s => s.metrics.customerGrowth)),
-      max: Math.max(...scenarios.map(s => s.metrics.customerGrowth))
+      min: Math.min(...[scenarioData.scenarios.base, scenarioData.scenarios.optimistic, scenarioData.scenarios.pessimistic].map(s => s.metrics.customerGrowth)),
+      max: Math.max(...[scenarioData.scenarios.base, scenarioData.scenarios.optimistic, scenarioData.scenarios.pessimistic].map(s => s.metrics.customerGrowth))
     }
 
     return {
@@ -154,58 +225,116 @@ export function ScenarioPlannerCalculator() {
   }
 
   const metrics = calculateMetrics()
-  
-  const chartData = [
+
+  const revenueComparisonData = [
     {
-      name: 'Revenue',
-      'Base Case': scenarios.find(s => s.id === 'base')?.metrics.revenue || 0,
-      'Optimistic': scenarios.find(s => s.id === 'optimistic')?.metrics.revenue || 0,
-      'Pessimistic': scenarios.find(s => s.id === 'pessimistic')?.metrics.revenue || 0
-    },
-    {
-      name: 'Market Share',
-      'Base Case': scenarios.find(s => s.id === 'base')?.metrics.marketShare || 0,
-      'Optimistic': scenarios.find(s => s.id === 'optimistic')?.metrics.marketShare || 0,
-      'Pessimistic': scenarios.find(s => s.id === 'pessimistic')?.metrics.marketShare || 0
-    },
-    {
-      name: 'Customer Growth',
-      'Base Case': scenarios.find(s => s.id === 'base')?.metrics.customerGrowth || 0,
-      'Optimistic': scenarios.find(s => s.id === 'optimistic')?.metrics.customerGrowth || 0,
-      'Pessimistic': scenarios.find(s => s.id === 'pessimistic')?.metrics.customerGrowth || 0
-    },
-    {
-      name: 'Profit Margin',
-      'Base Case': scenarios.find(s => s.id === 'base')?.metrics.profitMargin || 0,
-      'Optimistic': scenarios.find(s => s.id === 'optimistic')?.metrics.profitMargin || 0,
-      'Pessimistic': scenarios.find(s => s.id === 'pessimistic')?.metrics.profitMargin || 0
+      metric: 'Revenue ($)',
+      Base: scenarioData.scenarios.base.metrics.revenue,
+      Optimistic: scenarioData.scenarios.optimistic.metrics.revenue,
+      Pessimistic: scenarioData.scenarios.pessimistic.metrics.revenue
     }
   ]
 
+  const percentageMetricsData = [
+    {
+      metric: 'Market Share (%)',
+      Base: scenarioData.scenarios.base.metrics.marketShare,
+      Optimistic: scenarioData.scenarios.optimistic.metrics.marketShare,
+      Pessimistic: scenarioData.scenarios.pessimistic.metrics.marketShare
+    },
+    {
+      metric: 'Customer Growth (%)',
+      Base: scenarioData.scenarios.base.metrics.customerGrowth,
+      Optimistic: scenarioData.scenarios.optimistic.metrics.customerGrowth,
+      Pessimistic: scenarioData.scenarios.pessimistic.metrics.customerGrowth
+    },
+    {
+      metric: 'Profit Margin (%)',
+      Base: scenarioData.scenarios.base.metrics.profitMargin,
+      Optimistic: scenarioData.scenarios.optimistic.metrics.profitMargin,
+      Pessimistic: scenarioData.scenarios.pessimistic.metrics.profitMargin
+    }
+  ]
+
+  const stackedRevenueData = [
+    {
+      name: 'Base Case',
+      Revenue: scenarioData.scenarios.base.metrics.revenue,
+      DirectCosts: scenarioData.scenarios.base.metrics.costs,
+      OperatingExpenses: scenarioData.scenarios.base.metrics.operatingExpenses,
+      NetProfit: scenarioData.scenarios.base.metrics.revenue - scenarioData.scenarios.base.metrics.costs - scenarioData.scenarios.base.metrics.operatingExpenses
+    },
+    {
+      name: 'Optimistic',
+      Revenue: scenarioData.scenarios.optimistic.metrics.revenue,
+      DirectCosts: scenarioData.scenarios.optimistic.metrics.costs,
+      OperatingExpenses: scenarioData.scenarios.optimistic.metrics.operatingExpenses,
+      NetProfit: scenarioData.scenarios.optimistic.metrics.revenue - scenarioData.scenarios.optimistic.metrics.costs - scenarioData.scenarios.optimistic.metrics.operatingExpenses
+    },
+    {
+      name: 'Pessimistic',
+      Revenue: scenarioData.scenarios.pessimistic.metrics.revenue,
+      DirectCosts: scenarioData.scenarios.pessimistic.metrics.costs,
+      OperatingExpenses: scenarioData.scenarios.pessimistic.metrics.operatingExpenses,
+      NetProfit: scenarioData.scenarios.pessimistic.metrics.revenue - scenarioData.scenarios.pessimistic.metrics.costs - scenarioData.scenarios.pessimistic.metrics.operatingExpenses
+    }
+  ]
+
+  const customerGrowthData = [
+    {
+      name: 'Base Case',
+      BaselineClients: scenarioData.scenarios.base.metrics.baselineClients,
+      CustomerGrowth: scenarioData.scenarios.base.metrics.customerGrowth,
+      TotalClients: scenarioData.scenarios.base.metrics.baselineClients * (1 + scenarioData.scenarios.base.metrics.customerGrowth / 100)
+    },
+    {
+      name: 'Optimistic',
+      BaselineClients: scenarioData.scenarios.optimistic.metrics.baselineClients,
+      CustomerGrowth: scenarioData.scenarios.optimistic.metrics.customerGrowth,
+      TotalClients: scenarioData.scenarios.optimistic.metrics.baselineClients * (1 + scenarioData.scenarios.optimistic.metrics.customerGrowth / 100)
+    },
+    {
+      name: 'Pessimistic',
+      BaselineClients: scenarioData.scenarios.pessimistic.metrics.baselineClients,
+      CustomerGrowth: scenarioData.scenarios.pessimistic.metrics.customerGrowth,
+      TotalClients: scenarioData.scenarios.pessimistic.metrics.baselineClients * (1 + scenarioData.scenarios.pessimistic.metrics.customerGrowth / 100)
+    }
+  ]
+
+  const probabilityData = [
+    { name: 'Base Case', value: scenarioData.scenarios.base.probability },
+    { name: 'Optimistic', value: scenarioData.scenarios.optimistic.probability },
+    { name: 'Pessimistic', value: scenarioData.scenarios.pessimistic.probability }
+  ]
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Scenario Planner</h2>
+        <DataPersistence
+          data={scenarioData}
+          onDataImport={setScenarioData}
+          dataType="scenario-planner"
+        />
+      </div>
+
       <div className="flex justify-end gap-2">
         <SaveLoadState
           calculatorType="scenario-planner"
-          currentState={{
-            scenarios,
-            metrics,
-            activeScenario
-          }}
+          currentState={scenarioData}
           onLoadState={(state) => {
-            setScenarios(state.scenarios)
-            setActiveScenario(state.activeScenario)
+            setScenarioData(state)
           }}
         />
         <ExportButton
           data={{
-            scenarios: scenarios.map(scenario => ({
+            scenarios: [scenarioData.scenarios.base, scenarioData.scenarios.optimistic, scenarioData.scenarios.pessimistic].map(scenario => ({
               ...scenario,
               expectedValue: scenario.probability * scenario.metrics.revenue
             })),
             metrics,
             summary: {
-              totalProbability: scenarios.reduce((sum, s) => sum + s.probability, 0),
+              totalProbability: [scenarioData.scenarios.base, scenarioData.scenarios.optimistic, scenarioData.scenarios.pessimistic].reduce((sum, s) => sum + s.probability, 0),
               expectedRevenue: metrics.expectedRevenue,
               expectedProfit: metrics.expectedProfit,
               riskMetrics: {
@@ -218,106 +347,46 @@ export function ScenarioPlannerCalculator() {
           filename="scenario-analysis"
           title="Business Scenario Analysis"
           description="Comprehensive analysis of business scenarios and their potential outcomes"
-          chartType="radar"
-          chartData={chartData}
+          chartType="bar"
+          chartData={revenueComparisonData}
         />
       </div>
-      <Tabs value={activeScenario} onValueChange={setActiveScenario}>
-        <TabsList className="w-full">
-          {scenarios.map(scenario => (
-            <TabsTrigger key={scenario.id} value={scenario.id} className="flex-1">
-              {scenario.name}
-            </TabsTrigger>
-          ))}
-        </TabsList>
 
-        {scenarios.map(scenario => (
-          <TabsContent key={scenario.id} value={scenario.id}>
-            <Card className="p-6">
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-xl font-semibold">{scenario.name}</h3>
-                  <p className="text-muted-foreground">{scenario.description}</p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="revenue">Revenue ($)</Label>
-                    <Input
-                      id="revenue"
-                      type="number"
-                      value={scenario.metrics.revenue || ''}
-                      onChange={e => updateScenarioMetric(scenario.id, 'revenue', parseFloat(e.target.value) || 0)}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="costs">Direct Costs ($)</Label>
-                    <Input
-                      id="costs"
-                      type="number"
-                      value={scenario.metrics.costs || ''}
-                      onChange={e => updateScenarioMetric(scenario.id, 'costs', parseFloat(e.target.value) || 0)}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="marketShare">Market Share (%)</Label>
-                    <Input
-                      id="marketShare"
-                      type="number"
-                      value={scenario.metrics.marketShare || ''}
-                      onChange={e => updateScenarioMetric(scenario.id, 'marketShare', parseFloat(e.target.value) || 0)}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="customerGrowth">Customer Growth (%)</Label>
-                    <Input
-                      id="customerGrowth"
-                      type="number"
-                      value={scenario.metrics.customerGrowth || ''}
-                      onChange={e => updateScenarioMetric(scenario.id, 'customerGrowth', parseFloat(e.target.value) || 0)}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="operatingExpenses">Operating Expenses ($)</Label>
-                    <Input
-                      id="operatingExpenses"
-                      type="number"
-                      value={scenario.metrics.operatingExpenses || ''}
-                      onChange={e => updateScenarioMetric(scenario.id, 'operatingExpenses', parseFloat(e.target.value) || 0)}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="profitMargin">Profit Margin (%)</Label>
-                    <Input
-                      id="profitMargin"
-                      type="number"
-                      value={scenario.metrics.profitMargin || ''}
-                      onChange={e => updateScenarioMetric(scenario.id, 'profitMargin', parseFloat(e.target.value) || 0)}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="probability">Probability (%)</Label>
-                    <Input
-                      id="probability"
-                      type="number"
-                      value={scenario.probability || ''}
-                      onChange={e => updateScenarioProbability(scenario.id, parseFloat(e.target.value) || 0)}
-                    />
-                  </div>
-                </div>
-              </div>
-            </Card>
+      <Card className="p-6 space-y-4">
+        <Tabs 
+          value={scenarioData.activeTab} 
+          onValueChange={handleTabChange}
+        >
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="base">Base Case</TabsTrigger>
+            <TabsTrigger value="optimistic">Optimistic</TabsTrigger>
+            <TabsTrigger value="pessimistic">Pessimistic</TabsTrigger>
+          </TabsList>
+          <TabsContent value="base">
+            {renderScenarioInputs(
+              scenarioData.scenarios.base,
+              'base',
+              updateMetrics,
+              updateProbability
+            )}
           </TabsContent>
-        ))}
-      </Tabs>
-
-      <Card className="p-6">
+          <TabsContent value="optimistic">
+            {renderScenarioInputs(
+              scenarioData.scenarios.optimistic,
+              'optimistic',
+              updateMetrics,
+              updateProbability
+            )}
+          </TabsContent>
+          <TabsContent value="pessimistic">
+            {renderScenarioInputs(
+              scenarioData.scenarios.pessimistic,
+              'pessimistic',
+              updateMetrics,
+              updateProbability
+            )}
+          </TabsContent>
+        </Tabs>
         <h3 className="text-xl font-semibold mb-4">Scenario Analysis</h3>
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -361,7 +430,7 @@ export function ScenarioPlannerCalculator() {
           <div className="p-4 bg-secondary rounded-lg">
             <h4 className="font-medium mb-4">Scenario Comparison</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {scenarios.map(scenario => (
+              {[scenarioData.scenarios.base, scenarioData.scenarios.optimistic, scenarioData.scenarios.pessimistic].map(scenario => (
                 <div key={scenario.id} className="space-y-2">
                   <div className="font-medium">{scenario.name}</div>
                   <div className="text-sm text-muted-foreground">Probability: {scenario.probability}%</div>
@@ -375,31 +444,322 @@ export function ScenarioPlannerCalculator() {
         </div>
       </Card>
 
-      <div className="h-[400px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="Base Case" name="Base Case" fill="#8884d8" />
-            <Bar dataKey="Optimistic" name="Optimistic" fill="#82ca9d" />
-            <Bar dataKey="Pessimistic" name="Pessimistic" fill="#ffc658" />
-          </BarChart>
-        </ResponsiveContainer>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Revenue Comparison Chart */}
+        <Card className="p-4">
+          <h3 className="text-lg font-semibold mb-4">Revenue Comparison</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart
+              data={revenueComparisonData}
+              layout="vertical"
+              margin={{ left: 80, right: 20, bottom: 20 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" horizontal />
+              <XAxis type="number" />
+              <YAxis 
+                dataKey="metric" 
+                type="category" 
+                width={120} 
+                tickFormatter={(value) => value}
+              />
+              <Tooltip 
+                formatter={(value, name) => [
+                  value.toLocaleString('en-US', { 
+                    style: 'currency', 
+                    currency: 'USD', 
+                    minimumFractionDigits: 0, 
+                    maximumFractionDigits: 0 
+                  }), 
+                  name === 'Base' ? 'Base Case' : 
+                  name === 'Optimistic' ? 'Optimistic' : 
+                  'Pessimistic'
+                ]}
+              />
+              <Legend 
+                formatter={(value) => 
+                  value === 'Base' ? 'Base Case' : 
+                  value === 'Optimistic' ? 'Optimistic' : 
+                  'Pessimistic'
+                }
+              />
+              <Bar dataKey="Base" fill="#8884d8" barSize={20} />
+              <Bar dataKey="Optimistic" fill="#82ca9d" barSize={20} />
+              <Bar dataKey="Pessimistic" fill="#ff7300" barSize={20} />
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
+
+        {/* Percentage Metrics Comparison Chart */}
+        <Card className="p-4">
+          <h3 className="text-lg font-semibold mb-4">Percentage Metrics Comparison</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart
+              data={percentageMetricsData}
+              layout="vertical"
+              margin={{ left: 80, right: 20, bottom: 20 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" horizontal />
+              <XAxis type="number" />
+              <YAxis 
+                dataKey="metric" 
+                type="category" 
+                width={120} 
+                tickFormatter={(value) => value}
+              />
+              <Tooltip 
+                formatter={(value, name) => [
+                  `${(value as number).toFixed(2)}%`, 
+                  name === 'Base' ? 'Base Case' : 
+                  name === 'Optimistic' ? 'Optimistic' : 
+                  'Pessimistic'
+                ]}
+              />
+              <Legend 
+                formatter={(value) => 
+                  value === 'Base' ? 'Base Case' : 
+                  value === 'Optimistic' ? 'Optimistic' : 
+                  'Pessimistic'
+                }
+              />
+              <Bar dataKey="Base" fill="#8884d8" barSize={20} />
+              <Bar dataKey="Optimistic" fill="#82ca9d" barSize={20} />
+              <Bar dataKey="Pessimistic" fill="#ff7300" barSize={20} />
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
       </div>
-      <div className="h-[400px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <RadarChart data={chartData}>
-            <PolarGrid />
-            <PolarAngleAxis dataKey="name" />
-            <PolarRadiusAxis />
-            <Radar dataKey="Base Case" name="Base Case" fill="#8884d8" />
-            <Radar dataKey="Optimistic" name="Optimistic" fill="#82ca9d" />
-            <Radar dataKey="Pessimistic" name="Pessimistic" fill="#ffc658" />
-          </RadarChart>
-        </ResponsiveContainer>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Stacked Bar Chart for Revenue Breakdown */}
+        <Card className="p-4">
+          <h3 className="text-lg font-semibold mb-4">Revenue and Cost Breakdown</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={stackedRevenueData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="Revenue" stackId="a" fill="#8884d8" />
+              <Bar dataKey="DirectCosts" stackId="a" fill="#82ca9d" />
+              <Bar dataKey="OperatingExpenses" stackId="a" fill="#ffc658" />
+              <Bar dataKey="NetProfit" stackId="a" fill="#ff7300" />
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
+
+        {/* Line Chart for Customer Growth */}
+        <Card className="p-4">
+          <h3 className="text-lg font-semibold mb-4">Customer Growth Projection</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={customerGrowthData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="BaselineClients" stroke="#8884d8" activeDot={{ r: 8 }} />
+              <Line type="monotone" dataKey="CustomerGrowth" stroke="#82ca9d" />
+              <Line type="monotone" dataKey="TotalClients" stroke="#ff7300" />
+            </LineChart>
+          </ResponsiveContainer>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Pie Chart for Probability Distribution */}
+        <Card className="p-4">
+          <h3 className="text-lg font-semibold mb-4">Scenario Probability Distribution</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={probabilityData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+              >
+                {probabilityData.map((_, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={['#8884d8', '#82ca9d', '#ff7300'][index % 3]} 
+                  />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </Card>
+      </div>
+    </div>
+  )
+}
+
+function renderScenarioInputs(
+  scenario: Scenario, 
+  scenarioType: 'base' | 'optimistic' | 'pessimistic',
+  updateMetrics: (type: 'base' | 'optimistic' | 'pessimistic', field: keyof ScenarioMetrics, value: number) => void,
+  updateProbability: (type: 'base' | 'optimistic' | 'pessimistic', value: number) => void
+) {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <TooltipProvider delayDuration={0}>
+            <UITooltip>
+              <TooltipTrigger asChild>
+                <Label htmlFor="baselineClients">Baseline Clients <AlertCircle className="inline-block w-4 h-4" /></Label>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                Number of clients at the start of the business. This could be 0 or an existing client base.
+              </TooltipContent>
+            </UITooltip>
+          </TooltipProvider>
+          <Input
+            id="baselineClients"
+            type="number"
+            min="0"
+            value={scenario.metrics.baselineClients || ''}
+            onChange={e => updateMetrics(scenarioType, 'baselineClients', parseFloat(e.target.value) || 0)}
+          />
+        </div>
+
+        <div>
+          <TooltipProvider delayDuration={0}>
+            <UITooltip>
+              <TooltipTrigger asChild>
+                <Label htmlFor="revenue">Revenue ($) <AlertCircle className="inline-block w-4 h-4" /></Label>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                Total expected annual income generated from sales of products or services before expenses are deducted.
+              </TooltipContent>
+            </UITooltip>
+          </TooltipProvider>
+          <Input
+            id="revenue"
+            type="number"
+            value={scenario.metrics.revenue || ''}
+            onChange={e => updateMetrics(scenarioType, 'revenue', parseFloat(e.target.value) || 0)}
+          />
+        </div>
+
+        <div>
+          <TooltipProvider delayDuration={0}>
+            <UITooltip>
+              <TooltipTrigger asChild>
+                <Label htmlFor="costs">Direct Costs ($) <AlertCircle className="inline-block w-4 h-4" /></Label>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                Total of all expected expenses directly tied to producing goods or services, such as raw materials and direct labor.
+              </TooltipContent>
+            </UITooltip>
+          </TooltipProvider>
+          <Input
+            id="costs"
+            type="number"
+            value={scenario.metrics.costs || ''}
+            onChange={e => updateMetrics(scenarioType, 'costs', parseFloat(e.target.value) || 0)}
+          />
+        </div>
+
+        <div>
+          <TooltipProvider delayDuration={0}>
+            <UITooltip>
+              <TooltipTrigger asChild>
+                <Label htmlFor="marketShare">Market Share (%) <AlertCircle className="inline-block w-4 h-4" /></Label>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                Percentage of total market sales captured by your business in a specific market segment.
+              </TooltipContent>
+            </UITooltip>
+          </TooltipProvider>
+          <Input
+            id="marketShare"
+            type="number"
+            value={scenario.metrics.marketShare || ''}
+            onChange={e => updateMetrics(scenarioType, 'marketShare', parseFloat(e.target.value) || 0)}
+          />
+        </div>
+
+        <div>
+          <TooltipProvider delayDuration={0}>
+            <UITooltip>
+              <TooltipTrigger asChild>
+                <Label htmlFor="customerGrowth">Customer Growth (%) <AlertCircle className="inline-block w-4 h-4" /></Label>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                Rate of increase in the number of customers over a specific period.
+              </TooltipContent>
+            </UITooltip>
+          </TooltipProvider>
+          <Input
+            id="customerGrowth"
+            type="number"
+            value={scenario.metrics.customerGrowth || ''}
+            onChange={e => updateMetrics(scenarioType, 'customerGrowth', parseFloat(e.target.value) || 0)}
+          />
+        </div>
+
+        <div>
+          <TooltipProvider delayDuration={0}>
+            <UITooltip>
+              <TooltipTrigger asChild>
+                <Label htmlFor="operatingExpenses">Operating Expenses ($) <AlertCircle className="inline-block w-4 h-4" /></Label>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                Regular costs required to run the business, such as rent, utilities, salaries, and administrative expenses.
+              </TooltipContent>
+            </UITooltip>
+          </TooltipProvider>
+          <Input
+            id="operatingExpenses"
+            type="number"
+            value={scenario.metrics.operatingExpenses || ''}
+            onChange={e => updateMetrics(scenarioType, 'operatingExpenses', parseFloat(e.target.value) || 0)}
+          />
+        </div>
+
+        <div>
+          <TooltipProvider delayDuration={0}>
+            <UITooltip>
+              <TooltipTrigger asChild>
+                <Label htmlFor="profitMargin">Profit Margin (%) <AlertCircle className="inline-block w-4 h-4" /></Label>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                Percentage of revenue that translates into profit after all expenses are deducted.
+              </TooltipContent>
+            </UITooltip>
+          </TooltipProvider>
+          <Input
+            id="profitMargin"
+            type="number"
+            value={scenario.metrics.profitMargin || ''}
+            onChange={e => updateMetrics(scenarioType, 'profitMargin', parseFloat(e.target.value) || 0)}
+          />
+        </div>
+
+        <div>
+          <TooltipProvider delayDuration={0}>
+            <UITooltip>
+              <TooltipTrigger asChild>
+                <Label htmlFor="probability">Probability (%) <AlertCircle className="inline-block w-4 h-4" /></Label>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                Estimated likelihood of this scenario occurring. Total probability across scenarios must not exceed 100%.
+              </TooltipContent>
+            </UITooltip>
+          </TooltipProvider>
+          <Input
+            id="probability"
+            type="number"
+            value={scenario.probability || ''}
+            onChange={e => updateProbability(scenarioType, parseFloat(e.target.value) || 0)}
+          />
+        </div>
       </div>
     </div>
   )

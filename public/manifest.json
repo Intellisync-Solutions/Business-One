@@ -1,0 +1,62 @@
+{
+  "name": "Intellisync Business Suite",
+  "short_name": "Intellisync",
+  "description": "Professional business analytics suite featuring financial calculators, ratio analysis, and strategic pricing tools",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0f172a",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Financial Calculator",
+      "short_name": "Calculator",
+      "description": "Open the financial calculator",
+      "url": "/calculator",
+      "icons": [{ "src": "/shortcuts/calculator.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Ratio Analysis",
+      "short_name": "Ratios",
+      "description": "Open ratio analysis tools",
+      "url": "/ratios",
+      "icons": [{ "src": "/shortcuts/ratios.png", "sizes": "96x96" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/desktop.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide"
+    },
+    {
+      "src": "/screenshots/mobile.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "categories": ["business", "finance", "productivity"],
+  "prefer_related_applications": false
+}

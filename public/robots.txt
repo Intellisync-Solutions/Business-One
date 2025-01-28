@@ -1,0 +1,22 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Sitemaps
+Sitemap: https://intellisync-suite.com/sitemap.xml
+
+# Prevent access to admin areas
+Disallow: /admin/
+Disallow: /dashboard/private/
+Disallow: /api/
+
+# Allow access to public assets
+Allow: /static/
+Allow: /images/
+Allow: /public/
+Allow: /*.js$
+Allow: /*.css$
+Allow: /*.png$
+Allow: /*.jpg$
+Allow: /*.svg$
+Allow: /*.ico$
