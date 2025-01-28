@@ -20,49 +20,102 @@ interface SubscriptionMetrics {
   monthlySubscriptionPrice: number
   customerAcquisitionCost: number
   customerRetentionRate: number
-  monthlyOperatingCosts: number
+  monthlyPlatformCosts: number
+  monthlyPerClientCosts: number
   initialCustomerBase: number
+  monthlyGrowthRate: number
 }
 
 interface RevenueProjection {
   month: number
   customers: number
+  newCustomers: number
+  potentialNewCustomers: number
   monthlyRevenue: number
   cumulativeRevenue: number
+  operatingCosts: number
+  acquisitionCosts: number
   netProfit: number
+  cumulativeProfit: number
 }
 
 export function SubscriptionRevenueCalculator() {
   const [metrics, setMetrics] = useState<SubscriptionMetrics>({
     monthlySubscriptionPrice: 0,
     customerAcquisitionCost: 0,
-    customerRetentionRate: 0.9, // Default 90% retention
-    monthlyOperatingCosts: 0,
-    initialCustomerBase: 0
+    customerRetentionRate: 0,
+    monthlyPlatformCosts: 0,
+    monthlyPerClientCosts: 0,
+    initialCustomerBase: 0,
+    monthlyGrowthRate: 0
   })
 
   const projectedRevenue = useMemo(() => {
     const projections: RevenueProjection[] = []
-    let currentCustomers = metrics.initialCustomerBase
+    let totalCustomers = metrics.initialCustomerBase
     let cumulativeRevenue = 0
+    let cumulativeProfit = 0
 
     for (let month = 1; month <= 12; month++) {
-      const monthlyRevenue = currentCustomers * metrics.monthlySubscriptionPrice
-      const customerAcquisitionExpense = metrics.customerAcquisitionCost * (currentCustomers * 0.2) // Assuming 20% new customer growth
-      const netProfit = monthlyRevenue - customerAcquisitionExpense - metrics.monthlyOperatingCosts
-
-      cumulativeRevenue += monthlyRevenue
+      // Calculate new customers using current total as base:
+      // currentTotalClients * monthlyGrowthRate * customerRetention = newClients
+      const growthContribution = Math.round(
+        totalCustomers * 
+        (metrics.monthlyGrowthRate / 100) * 
+        (metrics.customerRetentionRate / 100)
+      )
       
+      // Calculate acquisition cost for potential new customers before retention
+      const potentialNewCustomers = Math.round(totalCustomers * (metrics.monthlyGrowthRate / 100))
+      const acquisitionCosts = metrics.customerAcquisitionCost * potentialNewCustomers
+      
+      // Add new retained customers to total
+      totalCustomers = totalCustomers + growthContribution
+      
+      // Example with:
+      // - 10 initial clients
+      // - 5% monthly growth
+      // - 90% retention
+      // Month 1:
+      // - Potential new: 10 * 5% = 0.5 ≈ 1 (for acquisition cost)
+      // - Growth contribution: 10 * 5% * 90% = 0.45 ≈ 0
+      // - Total: 10 + 0 = 10
+      // Month 2:
+      // - Base is now 10
+      // - Potential new: 10 * 5% = 0.5 ≈ 1 (for acquisition cost)
+      // - Growth contribution: 10 * 5% * 90% = 0.45 ≈ 0
+      // - Total: 10 + 0 = 10
+      
+      // Calculate revenue and costs:
+      // totalClientsByMonth * monthlySubscription - customerAcquisitionCost - monthlyPlatformCost - monthlyCostPerClient = netProfit
+      
+      // Monthly revenue from total customers
+      const monthlyRevenue = totalCustomers * metrics.monthlySubscriptionPrice
+      
+      // Calculate platform and per-client costs
+      const platformCosts = metrics.monthlyPlatformCosts
+      const perClientCosts = totalCustomers * metrics.monthlyPerClientCosts
+      
+      // Calculate net profit following the exact formula
+      const monthlyNetProfit = monthlyRevenue - acquisitionCosts - platformCosts - perClientCosts
+      
+      // Update cumulative totals
+      cumulativeRevenue += monthlyRevenue
+      cumulativeProfit += monthlyNetProfit
+      
+      // Store this month's projections
       projections.push({
         month,
-        customers: Math.round(currentCustomers),
+        customers: totalCustomers,
+        newCustomers: growthContribution,
+        potentialNewCustomers: potentialNewCustomers,
         monthlyRevenue: Math.round(monthlyRevenue),
         cumulativeRevenue: Math.round(cumulativeRevenue),
-        netProfit: Math.round(netProfit)
+        operatingCosts: Math.round(platformCosts + perClientCosts),
+        acquisitionCosts: Math.round(acquisitionCosts),
+        netProfit: Math.round(monthlyNetProfit),
+        cumulativeProfit: Math.round(cumulativeProfit)
       })
-
-      // Calculate next month's customers with retention and growth
-      currentCustomers = currentCustomers * metrics.customerRetentionRate + (currentCustomers * 0.2)
     }
 
     return projections
@@ -143,10 +196,10 @@ export function SubscriptionRevenueCalculator() {
             type="number"
             min="0"
             max="100"
-            value={(metrics.customerRetentionRate * 100) || ''}
+            value={(metrics.customerRetentionRate) || ''}
             onChange={(e) => {
               const value = parseFloat(e.target.value) || 0
-              setMetrics(prev => ({ ...prev, customerRetentionRate: value / 100 }))
+              setMetrics(prev => ({ ...prev, customerRetentionRate: value }))
             }}
             placeholder="Enter retention rate"
           />
@@ -177,24 +230,72 @@ export function SubscriptionRevenueCalculator() {
         
         <div>
           <div className="flex items-center space-x-2">
-            <Label htmlFor="monthlyOperatingCosts">Monthly Operating Costs ($)</Label>
+            <Label htmlFor="monthlyPlatformCosts">Monthly Platform Costs ($)</Label>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
                   <HelpCircle className="h-4 w-4 text-muted-foreground" />
                 </TooltipTrigger>
                 <TooltipContent>
-                  Recurring monthly expenses to maintain the service
+                  Fixed monthly costs to maintain the platform (servers, infrastructure, etc.)
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
           <Input
-            id="monthlyOperatingCosts"
+            id="monthlyPlatformCosts"
             type="number"
-            value={metrics.monthlyOperatingCosts || ''}
-            onChange={handleInputChange('monthlyOperatingCosts')}
-            placeholder="Enter monthly costs"
+            value={metrics.monthlyPlatformCosts || ''}
+            onChange={handleInputChange('monthlyPlatformCosts')}
+            placeholder="Enter platform costs"
+          />
+        </div>
+        
+        <div>
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="monthlyPerClientCosts">Monthly Cost Per Client ($)</Label>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  Variable costs per client per month (support, resources, etc.)
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <Input
+            id="monthlyPerClientCosts"
+            type="number"
+            value={metrics.monthlyPerClientCosts || ''}
+            onChange={handleInputChange('monthlyPerClientCosts')}
+            placeholder="Enter per-client costs"
+          />
+        </div>
+        
+        <div>
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="monthlyGrowthRate">Monthly Growth Rate (%)</Label>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  Expected monthly customer growth rate as a percentage
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <Input
+            id="monthlyGrowthRate"
+            type="number"
+            min="0"
+            max="100"
+            value={metrics.monthlyGrowthRate || ''}
+            onChange={handleInputChange('monthlyGrowthRate')}
+            placeholder="Enter growth rate"
           />
         </div>
       </div>
@@ -207,9 +308,11 @@ export function SubscriptionRevenueCalculator() {
             setMetrics({
               monthlySubscriptionPrice: 0,
               customerAcquisitionCost: 0,
-              customerRetentionRate: 0.9,
-              monthlyOperatingCosts: 0,
-              initialCustomerBase: 0
+              customerRetentionRate: 0,
+              monthlyPlatformCosts: 0,
+              monthlyPerClientCosts: 0,
+              initialCustomerBase: 0,
+              monthlyGrowthRate: 0
             })
           }}
         >
@@ -219,9 +322,9 @@ export function SubscriptionRevenueCalculator() {
           onClick={() => {
             // Export projection as CSV
             const csvContent = [
-              "Month,Customers,Monthly Revenue,Cumulative Revenue,Net Profit",
+              "Month,Total Customers,New Customers,Potential New Customers,Monthly Revenue,Operating Costs,Acquisition Costs,Net Profit,Cumulative Profit",
               ...projectedRevenue.map(proj => 
-                `${proj.month},${proj.customers},${proj.monthlyRevenue},${proj.cumulativeRevenue},${proj.netProfit}`
+                `${proj.month},${proj.customers},${proj.newCustomers},${proj.potentialNewCustomers},${proj.monthlyRevenue},${proj.operatingCosts},${proj.acquisitionCosts},${proj.netProfit},${proj.cumulativeProfit}`
               )
             ].join("\n")
 
@@ -244,7 +347,7 @@ export function SubscriptionRevenueCalculator() {
         <ResponsiveContainer width="100%" height={400}>
           <LineChart 
             data={projectedRevenue}
-            margin={{ top: 20, right: 30, left: 20, bottom: 50 }} // Increased bottom margin
+            margin={{ top: 20, right: 30, left: 20, bottom: 50 }}
           >
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis 
@@ -252,7 +355,7 @@ export function SubscriptionRevenueCalculator() {
               label={{ 
                 value: 'Months', 
                 position: 'insideBottom', 
-                offset: 1, // Increased offset
+                offset: 1,
                 fontWeight: 'bold' 
               }} 
             />
@@ -267,27 +370,61 @@ export function SubscriptionRevenueCalculator() {
               tickFormatter={(value) => `$${value.toLocaleString()}`}
             />
             <ChartTooltip 
-              formatter={(value, name) => [`$${value.toLocaleString()}`, name]}
+              formatter={(value: number, name: string) => {
+                // Format customer numbers without currency
+                if (name === 'Total Customers' || name === 'New Customers' || name === 'Potential New Customers') {
+                  return [`${value.toLocaleString()} customers`, name]
+                }
+                
+                // Format monetary values with currency and 2 decimal places
+                if (name === 'Monthly Revenue' || name === 'Monthly Net Profit' || name === 'Cumulative Profit' || 
+                    name === 'Operating Costs' || name === 'Acquisition Costs') {
+                  return [`$${value.toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })}`, name]
+                }
+                
+                return [value.toLocaleString(), name]
+              }}
               labelFormatter={(label) => `Month ${label}`}
             />
             <Legend />
             <Line 
               type="monotone" 
-              dataKey="monthlyRevenue" 
-              stroke="#8884d8" 
-              name="Monthly Revenue" 
+              dataKey="customers" 
+              stroke="#4B5563" 
+              name="Total Customers"
             />
             <Line 
               type="monotone" 
-              dataKey="cumulativeRevenue" 
-              stroke="#82ca9d" 
-              name="Cumulative Revenue" 
+              dataKey="newCustomers" 
+              stroke="#9CA3AF" 
+              name="New Customers"
+            />
+            <Line 
+              type="monotone" 
+              dataKey="potentialNewCustomers" 
+              stroke="#F7DC6F" 
+              name="Potential New Customers"
+            />
+            <Line 
+              type="monotone" 
+              dataKey="monthlyRevenue" 
+              stroke="#8884d8" 
+              name="Monthly Revenue"
             />
             <Line 
               type="monotone" 
               dataKey="netProfit" 
+              stroke="#82ca9d" 
+              name="Monthly Net Profit"
+            />
+            <Line 
+              type="monotone" 
+              dataKey="cumulativeProfit" 
               stroke="#ffc658" 
-              name="Net Profit" 
+              name="Cumulative Profit"
             />
           </LineChart>
         </ResponsiveContainer>
@@ -298,20 +435,28 @@ export function SubscriptionRevenueCalculator() {
           <thead>
             <tr className="border-b">
               <th className="p-2 text-left">Month</th>
-              <th className="p-2 text-right">Customers</th>
+              <th className="p-2 text-right">Total Customers</th>
+              <th className="p-2 text-right">New Customers</th>
+              <th className="p-2 text-right">Potential New Customers</th>
               <th className="p-2 text-right">Monthly Revenue</th>
-              <th className="p-2 text-right">Cumulative Revenue</th>
+              <th className="p-2 text-right">Operating Costs</th>
+              <th className="p-2 text-right">Acquisition Costs</th>
               <th className="p-2 text-right">Net Profit</th>
+              <th className="p-2 text-right">Cumulative Profit</th>
             </tr>
           </thead>
           <tbody>
-            {projectedRevenue.map((projection) => (
-              <tr key={projection.month} className="border-b">
-                <td className="p-2">{projection.month}</td>
-                <td className="p-2 text-right">{projection.customers.toLocaleString()}</td>
-                <td className="p-2 text-right">${projection.monthlyRevenue.toLocaleString()}</td>
-                <td className="p-2 text-right">${projection.cumulativeRevenue.toLocaleString()}</td>
-                <td className="p-2 text-right">${projection.netProfit.toLocaleString()}</td>
+            {projectedRevenue.map((proj) => (
+              <tr key={proj.month} className="border-b">
+                <td className="p-2">{proj.month}</td>
+                <td className="p-2 text-right">{proj.customers.toLocaleString()}</td>
+                <td className="p-2 text-right">{proj.newCustomers.toLocaleString()}</td>
+                <td className="p-2 text-right">{proj.potentialNewCustomers.toLocaleString()}</td>
+                <td className="p-2 text-right">${proj.monthlyRevenue.toLocaleString()}</td>
+                <td className="p-2 text-right">${proj.operatingCosts.toLocaleString()}</td>
+                <td className="p-2 text-right">${proj.acquisitionCosts.toLocaleString()}</td>
+                <td className="p-2 text-right">${proj.netProfit.toLocaleString()}</td>
+                <td className="p-2 text-right">${proj.cumulativeProfit.toLocaleString()}</td>
               </tr>
             ))}
           </tbody>

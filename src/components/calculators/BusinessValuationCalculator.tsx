@@ -3,8 +3,6 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ExportButton } from "@/components/common/ExportButton"
-import { SaveLoadState } from "@/components/common/SaveLoadState"
 import { validateForm, commonValidations, ValidationConfig } from "@/utils/validationUtils"
 import { DataPersistence } from '@/components/common/DataPersistence'
 import { useCalculatorData } from '@/hooks/useCalculatorData'
@@ -154,30 +152,6 @@ export function BusinessValuationCalculator() {
           data={valuationData}
           onDataImport={setValuationData}
           dataType="business-valuation"
-        />
-      </div>
-
-      <div className="flex justify-end gap-2">
-        <SaveLoadState
-          calculatorType="business-valuation"
-          currentState={valuationData}
-          onLoadState={setValuationData}
-        />
-        <ExportButton
-          data={{
-            metrics: valuationData.metrics,
-            valuations,
-            summary: {
-              averageValuation: (valuations.assetBased + valuations.market + valuations.earnings + valuations.dcf) / 4,
-              valuationRange: {
-                min: Math.min(valuations.assetBased, valuations.market, valuations.earnings, valuations.dcf),
-                max: Math.max(valuations.assetBased, valuations.market, valuations.earnings, valuations.dcf)
-              }
-            }
-          }}
-          filename="business_valuation_report"
-          title="Business Valuation Report"
-          description="Comprehensive business valuation analysis including multiple valuation methods"
         />
       </div>
 

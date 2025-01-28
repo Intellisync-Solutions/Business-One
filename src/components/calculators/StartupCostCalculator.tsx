@@ -1,11 +1,8 @@
-
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ExportButton } from "@/components/common/ExportButton"
-import { SaveLoadState } from "@/components/common/SaveLoadState"
 import { 
   Tooltip as UITooltip, 
   TooltipContent, 
@@ -123,32 +120,6 @@ export function StartupCostCalculator() {
           data={costData}
           onDataImport={setCostData}
           dataType="startup-cost"
-        />
-      </div>
-
-      <div className="flex justify-end gap-2">
-        <SaveLoadState
-          calculatorType="startup-cost"
-          currentState={costData}
-          onLoadState={setCostData}
-        />
-        <ExportButton
-          data={{
-            costs: costData.costs,
-            totals,
-            summary: {
-              totalStartupCost,
-              monthlyOperatingCost,
-              recommendedCashReserve,
-              totalInitialCapital
-            },
-            filename: 'startup_costs.csv',
-            title: 'Startup Costs',
-            description: 'Detailed breakdown of startup costs and financial projections'
-          }}
-          filename="startup_costs.csv"
-          title="Startup Costs"
-          description="Detailed breakdown of startup costs and financial projections"
         />
       </div>
 

@@ -18,8 +18,6 @@ import {
   Pie,
   Cell
 } from 'recharts'
-import { ExportButton } from "@/components/common/ExportButton"
-import { SaveLoadState } from "@/components/common/SaveLoadState"
 import { 
   Tooltip as UITooltip, 
   TooltipContent, 
@@ -28,7 +26,6 @@ import {
 } from "@/components/ui/tooltip"
 import { AlertCircle } from "lucide-react"
 import { DataPersistence } from '@/components/common/DataPersistence'
-
 
 interface ScenarioMetrics {
   revenue: number;
@@ -315,40 +312,6 @@ export function ScenarioPlannerCalculator() {
           data={scenarioData}
           onDataImport={setScenarioData}
           dataType="scenario-planner"
-        />
-      </div>
-
-      <div className="flex justify-end gap-2">
-        <SaveLoadState
-          calculatorType="scenario-planner"
-          currentState={scenarioData}
-          onLoadState={(state) => {
-            setScenarioData(state)
-          }}
-        />
-        <ExportButton
-          data={{
-            scenarios: [scenarioData.scenarios.base, scenarioData.scenarios.optimistic, scenarioData.scenarios.pessimistic].map(scenario => ({
-              ...scenario,
-              expectedValue: scenario.probability * scenario.metrics.revenue
-            })),
-            metrics,
-            summary: {
-              totalProbability: [scenarioData.scenarios.base, scenarioData.scenarios.optimistic, scenarioData.scenarios.pessimistic].reduce((sum, s) => sum + s.probability, 0),
-              expectedRevenue: metrics.expectedRevenue,
-              expectedProfit: metrics.expectedProfit,
-              riskMetrics: {
-                volatility: 0,
-                downside: 0,
-                upside: 0
-              }
-            }
-          }}
-          filename="scenario-analysis"
-          title="Business Scenario Analysis"
-          description="Comprehensive analysis of business scenarios and their potential outcomes"
-          chartType="bar"
-          chartData={revenueComparisonData}
         />
       </div>
 

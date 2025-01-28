@@ -4,8 +4,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { ExportButton } from "@/components/common/ExportButton"
-import { SaveLoadState } from "@/components/common/SaveLoadState"
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { HelpCircle } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -46,7 +44,6 @@ export function BreakEvenCalculator() {
 
   const [result, setResult] = useState<CalculationResult | null>(null)
   const [chartData, setChartData] = useState<any[]>([])
-  const [breakEvenPoints, setBreakEvenPoints] = useState<any[]>([])
 
   const calculateBreakEven = () => {
     const { 
@@ -167,7 +164,6 @@ export function BreakEvenCalculator() {
     }
     
     setChartData(chartPoints)
-    setBreakEvenPoints(chartPoints)
   }
 
   const handleInputChange = (field: keyof BreakEvenData) => (
@@ -181,13 +177,6 @@ export function BreakEvenCalculator() {
     setBreakEvenData(prev => ({ ...prev, mode }))
   }
 
-  const enhancedChartData = breakEvenPoints.map(point => ({
-    name: `Units: ${point.units}`,
-    'Total Revenue': point.revenue,
-    'Total Cost': point.costs,
-    'Profit/Loss': point.revenue - point.costs
-  }))
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -196,41 +185,6 @@ export function BreakEvenCalculator() {
           data={breakEvenData}
           onDataImport={setBreakEvenData}
           dataType="break-even-analysis"
-        />
-      </div>
-      <div className="flex justify-end gap-2">
-        <SaveLoadState
-          calculatorType="break-even"
-          currentState={{
-            fixedCosts: breakEvenData.fixedCosts,
-            variableCosts: breakEvenData.variableCostPerUnit,
-            sellingPrice: breakEvenData.sellingPricePerUnit,
-            targetUnits: breakEvenData.targetUnits,
-            targetProfit: breakEvenData.targetProfit,
-            targetProfitPercentage: breakEvenData.targetProfitPercentage,
-            profitInputMode: breakEvenData.profitInputMode,
-            mode: breakEvenData.mode
-          }}
-          onLoadState={(state) => {
-            setBreakEvenData(prev => ({ ...prev, 
-              fixedCosts: state.fixedCosts,
-              variableCostPerUnit: state.variableCosts,
-              sellingPricePerUnit: state.sellingPrice,
-              targetUnits: state.targetUnits,
-              targetProfit: state.targetProfit,
-              targetProfitPercentage: state.targetProfitPercentage,
-              profitInputMode: state.profitInputMode,
-              mode: state.mode
-            }))
-          }}
-        />
-        <ExportButton
-          data={breakEvenPoints}
-          filename="break-even-analysis"
-          title="Break-Even Analysis"
-          description="Analysis of costs, revenue, and break-even points"
-          chartType="line"
-          chartData={enhancedChartData}
         />
       </div>
       <Card className="p-6">
