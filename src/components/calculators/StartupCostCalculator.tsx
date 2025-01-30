@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
-  Tooltip as UITooltip, 
+  Tooltip,
   TooltipContent, 
   TooltipProvider, 
   TooltipTrigger 
@@ -12,11 +12,13 @@ import {
 import { AlertCircle } from "lucide-react"
 import { DataPersistence } from '@/components/common/DataPersistence'
 import { useCalculatorData } from '@/hooks/useCalculatorData'
+import { StartupCostAnalysis } from './StartupCostAnalysis'
 
 interface StartupCost {
   name: string;
   amount: number;
   category: 'oneTime' | 'monthly' | 'inventory';
+  type: 'fixed' | 'variable';
   description?: string;
 }
 
@@ -33,6 +35,7 @@ export function StartupCostCalculator() {
       name: '',
       amount: 0,
       category: 'oneTime',
+      type: 'fixed',
       description: ''
     },
     activeTab: 'input'
@@ -42,7 +45,7 @@ export function StartupCostCalculator() {
   console.log('Current cost data:', costData)
 
   const handleAddCost = () => {
-    const { name, amount, category, description } = costData.newCost
+    const { name, amount, category, type, description } = costData.newCost
     
     // Improved validation
     if (!name.trim()) {
@@ -57,11 +60,12 @@ export function StartupCostCalculator() {
 
     setCostData({
       ...costData,
-      costs: [...costData.costs, { name, amount, category, description }],
+      costs: [...costData.costs, { name, amount, category, type, description }],
       newCost: {
         name: '',
         amount: 0,
         category: 'oneTime',
+        type: 'fixed',
         description: ''
       }
     })
@@ -75,16 +79,26 @@ export function StartupCostCalculator() {
   }
 
   const handleNewCostChange = (
-    field: keyof Pick<StartupCost, 'name' | 'amount' | 'category' | 'description'>, 
+    field: keyof Pick<StartupCost, 'name' | 'amount' | 'category' | 'type' | 'description'>, 
     value: string | number
   ) => {
-    setCostData({
-      ...costData,
-      newCost: {
-        ...costData.newCost,
-        [field]: value
-      }
-    })
+    if (field === 'type') {
+      setCostData({
+        ...costData,
+        newCost: {
+          ...costData.newCost,
+          [field]: value as 'fixed' | 'variable'
+        }
+      })
+    } else {
+      setCostData({
+        ...costData,
+        newCost: {
+          ...costData.newCost,
+          [field]: value
+        }
+      })
+    }
   }
 
   const handleTabChange = (value: string): void => {
@@ -94,21 +108,45 @@ export function StartupCostCalculator() {
     })
   }
 
-  // Calculate totals
+  // Calculate totals with expense type
   const totals = {
-    oneTime: costData.costs
-      .filter(cost => cost.category === 'oneTime')
-      .reduce((sum, cost) => sum + cost.amount, 0),
-    monthly: costData.costs
-      .filter(cost => cost.category === 'monthly')
-      .reduce((sum, cost) => sum + cost.amount, 0),
-    inventory: costData.costs
-      .filter(cost => cost.category === 'inventory')
-      .reduce((sum, cost) => sum + cost.amount, 0)
+    oneTime: {
+      fixed: costData.costs
+        .filter(cost => cost.category === 'oneTime' && cost.type === 'fixed')
+        .reduce((sum, cost) => sum + cost.amount, 0),
+      variable: costData.costs
+        .filter(cost => cost.category === 'oneTime' && cost.type === 'variable')
+        .reduce((sum, cost) => sum + cost.amount, 0),
+      total: costData.costs
+        .filter(cost => cost.category === 'oneTime')
+        .reduce((sum, cost) => sum + cost.amount, 0)
+    },
+    monthly: {
+      fixed: costData.costs
+        .filter(cost => cost.category === 'monthly' && cost.type === 'fixed')
+        .reduce((sum, cost) => sum + cost.amount, 0),
+      variable: costData.costs
+        .filter(cost => cost.category === 'monthly' && cost.type === 'variable')
+        .reduce((sum, cost) => sum + cost.amount, 0),
+      total: costData.costs
+        .filter(cost => cost.category === 'monthly')
+        .reduce((sum, cost) => sum + cost.amount, 0)
+    },
+    inventory: {
+      fixed: costData.costs
+        .filter(cost => cost.category === 'inventory' && cost.type === 'fixed')
+        .reduce((sum, cost) => sum + cost.amount, 0),
+      variable: costData.costs
+        .filter(cost => cost.category === 'inventory' && cost.type === 'variable')
+        .reduce((sum, cost) => sum + cost.amount, 0),
+      total: costData.costs
+        .filter(cost => cost.category === 'inventory')
+        .reduce((sum, cost) => sum + cost.amount, 0)
+    }
   }
 
-  const totalStartupCost = totals.oneTime + totals.inventory
-  const monthlyOperatingCost = totals.monthly
+  const totalStartupCost = totals.oneTime.total + totals.inventory.total
+  const monthlyOperatingCost = totals.monthly.total
   const recommendedCashReserve = monthlyOperatingCost * 6 // 6 months reserve
   const totalInitialCapital = totalStartupCost + recommendedCashReserve
 
@@ -132,9 +170,21 @@ export function StartupCostCalculator() {
 
           <TabsContent value="input">
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div>
-                  <Label htmlFor="name">Cost Item</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="name">Cost Item</Label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Enter the name of your expense item (e.g., "Office Rent", "Equipment")</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <Input
                     id="name"
                     value={costData.newCost.name}
@@ -144,7 +194,19 @@ export function StartupCostCalculator() {
                 </div>
 
                 <div>
-                  <Label htmlFor="amount">Amount ($)</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="amount">Amount ($)</Label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Enter the cost amount in dollars</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <Input
                     id="amount"
                     type="number"
@@ -155,7 +217,19 @@ export function StartupCostCalculator() {
                 </div>
 
                 <div>
-                  <Label htmlFor="category">Category</Label>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="category">Category</Label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>One-Time: Initial expenses<br/>Monthly: Recurring costs<br/>Inventory: Initial stock</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <select
                     id="category"
                     className="w-full px-3 py-2 border rounded-md"
@@ -165,6 +239,31 @@ export function StartupCostCalculator() {
                     <option value="oneTime">One-Time Cost</option>
                     <option value="monthly">Monthly Cost</option>
                     <option value="inventory">Initial Inventory</option>
+                  </select>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="type">Type</Label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Fixed: Constant costs<br/>Variable: Costs that change with business activity</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <select
+                    id="type"
+                    className="w-full px-3 py-2 border rounded-md"
+                    value={costData.newCost.type}
+                    onChange={(e) => handleNewCostChange('type', e.target.value)}
+                  >
+                    <option value="fixed">Fixed</option>
+                    <option value="variable">Variable</option>
                   </select>
                 </div>
 
@@ -183,6 +282,9 @@ export function StartupCostCalculator() {
                         <span className="text-sm text-muted-foreground ml-2">
                           ({cost.category === 'oneTime' ? 'One-Time' : 
                             cost.category === 'monthly' ? 'Monthly' : 'Inventory'})
+                        </span>
+                        <span className="text-sm text-muted-foreground ml-2">
+                          ({cost.type === 'fixed' ? 'Fixed' : 'Variable'})
                         </span>
                       </div>
                       <div className="flex items-center gap-4">
@@ -207,54 +309,91 @@ export function StartupCostCalculator() {
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="p-4">
-                  <h3 className="font-semibold">One-Time Costs</h3>
-                  <p className="text-2xl mt-2">${totals.oneTime.toLocaleString()}</p>
+                  <h3 className="font-semibold mb-4">One-Time Costs Breakdown</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Fixed One-Time Costs:</span>
+                      <span className="font-medium">${totals.oneTime.fixed.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Variable One-Time Costs:</span>
+                      <span className="font-medium">${totals.oneTime.variable.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between border-t pt-2">
+                      <span className="font-bold">Total One-Time Costs:</span>
+                      <span className="font-bold">${totals.oneTime.total.toLocaleString()}</span>
+                    </div>
+                  </div>
                 </Card>
 
                 <Card className="p-4">
-                  <h3 className="font-semibold">Monthly Operating Costs</h3>
-                  <p className="text-2xl mt-2">${totals.monthly.toLocaleString()}</p>
+                  <h3 className="font-semibold mb-4">Monthly Costs Breakdown</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Fixed Monthly Costs:</span>
+                      <span className="font-medium">${totals.monthly.fixed.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Variable Monthly Costs:</span>
+                      <span className="font-medium">${totals.monthly.variable.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between border-t pt-2">
+                      <span className="font-bold">Total Monthly Costs:</span>
+                      <span className="font-bold">${totals.monthly.total.toLocaleString()}</span>
+                    </div>
+                  </div>
                 </Card>
 
                 <Card className="p-4">
-                  <h3 className="font-semibold">Initial Inventory</h3>
-                  <p className="text-2xl mt-2">${totals.inventory.toLocaleString()}</p>
+                  <h3 className="font-semibold mb-4">Inventory Costs Breakdown</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Fixed Inventory Costs:</span>
+                      <span className="font-medium">${totals.inventory.fixed.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Variable Inventory Costs:</span>
+                      <span className="font-medium">${totals.inventory.variable.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between border-t pt-2">
+                      <span className="font-bold">Total Inventory Costs:</span>
+                      <span className="font-bold">${totals.inventory.total.toLocaleString()}</span>
+                    </div>
+                  </div>
                 </Card>
               </div>
 
-              <Card className="p-6">
-                <h3 className="text-xl font-semibold mb-4">Financial Summary</h3>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span>Total Startup Cost</span>
-                    <span className="font-semibold">${totalStartupCost.toLocaleString()}</span>
+              <Card className="p-4">
+                <h3 className="font-semibold mb-4">Financial Summary</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Total Startup Cost:</span>
+                    <span className="font-medium">${totalStartupCost.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span>Monthly Operating Cost</span>
-                    <span className="font-semibold">${monthlyOperatingCost.toLocaleString()}</span>
+                  <div className="flex justify-between">
+                    <span>Monthly Operating Cost:</span>
+                    <span className="font-medium">${monthlyOperatingCost.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <TooltipProvider>
-                      <UITooltip>
-                        <TooltipTrigger className="flex items-center gap-1">
-                          Recommended Cash Reserve
-                          <AlertCircle className="h-4 w-4" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>6 months of operating costs</p>
-                        </TooltipContent>
-                      </UITooltip>
-                    </TooltipProvider>
-                    <span className="font-semibold">${recommendedCashReserve.toLocaleString()}</span>
+                  <div className="flex justify-between">
+                    <span>Recommended Cash Reserve (6 months):</span>
+                    <span className="font-medium">${recommendedCashReserve.toLocaleString()}</span>
                   </div>
-                  <div className="pt-4 border-t">
-                    <div className="flex justify-between items-center">
-                      <span className="font-semibold">Total Initial Capital Required</span>
-                      <span className="text-xl font-bold">${totalInitialCapital.toLocaleString()}</span>
-                    </div>
+                  <div className="flex justify-between border-t pt-2">
+                    <span className="font-bold">Total Initial Capital Required:</span>
+                    <span className="font-bold">${totalInitialCapital.toLocaleString()}</span>
                   </div>
                 </div>
               </Card>
+
+              <StartupCostAnalysis 
+                costs={totals}
+                metrics={{
+                  totalStartupCost,
+                  monthlyOperatingCost,
+                  recommendedCashReserve,
+                  totalInitialCapital
+                }}
+              />
             </div>
           </TabsContent>
         </Tabs>
