@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu"
 import { saveAs } from 'file-saver'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import {
@@ -32,34 +32,109 @@ import {
 } from 'recharts'
 import { Download } from 'lucide-react'
 
-interface ExportButtonProps {
-  data: any
-  filename: string
-  title: string
-  description: string
-  chartType?: 'line' | 'bar' | 'pie' | 'radar'
-  chartData?: any[]
+import { ChartConfig } from '@/utils/exportVisualizationUtils'
+
+// Define base data types that the ExportButton can handle
+export type BusinessData = {
+  assetBased?: number;
+  market?: number;
+  earnings?: number;
+  dcf?: number;
+  units?: number;
+  revenue?: number;
+  totalCost?: number;
+  oneTime?: number;
+  monthly?: number;
+  inventory?: number;
+  price?: number;
+  profit?: number;
+  volume?: number;
+  marketShare?: number;
+  growth?: number;
+  profitMargin?: number;
+  [key: string]: number | string | undefined;
 }
 
-export function ExportButton({ 
+export interface ExportButtonProps<T extends BusinessData> {
+  data: T[];
+  filename: string;
+  title: string;
+  description: string;
+  chartType?: ChartConfig['type'];
+  chartData?: T[];
+}
+
+export function ExportButton<T extends BusinessData>({ 
   data, 
   filename, 
   title, 
   description, 
   chartType,
   chartData 
-}: ExportButtonProps) {
+}: ExportButtonProps<T>) {
   const [isExporting, setIsExporting] = useState(false)
 
   const exportToExcel = async () => {
+    setIsExporting(true)
     try {
-      setIsExporting(true)
-      const ws = XLSX.utils.json_to_sheet(Array.isArray(data) ? data : [data])
-      const wb = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(wb, ws, 'Data')
-      XLSX.writeFile(wb, `${filename}.xlsx`)
+      const workbook = new ExcelJS.Workbook()
+      const worksheet = workbook.addWorksheet('Sheet1')
+
+      // Add title and description if provided
+      if (title) {
+        worksheet.mergeCells('A1:D1')
+        const titleCell = worksheet.getCell('A1')
+        titleCell.value = title
+        titleCell.font = { bold: true, size: 16 }
+      }
+
+      if (description) {
+        worksheet.mergeCells('A2:D2')
+        const descCell = worksheet.getCell('A2')
+        descCell.value = description
+        descCell.font = { size: 12 }
+      }
+
+      // Determine starting row for data
+      const dataStartRow = description ? 3 : (title ? 2 : 1)
+
+      // Add headers
+      const headers = Object.keys(data[0] || {})
+      headers.forEach((header, index) => {
+        const cell = worksheet.getCell(`${String.fromCharCode(65 + index)}${dataStartRow}`)
+        cell.value = header
+        cell.font = { bold: true }
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE0E0E0' }
+        }
+      })
+
+      // Add data rows
+      data.forEach((item: T, rowIndex) => {
+        headers.forEach((header, colIndex) => {
+          const cell = worksheet.getCell(`${String.fromCharCode(65 + colIndex)}${dataStartRow + rowIndex + 1}`)
+          cell.value = item[header]
+        })
+      })
+
+      // Auto-adjust column widths
+      worksheet.columns.forEach(column => {
+        let maxLength = 0
+        column.eachCell!({ includeEmpty: true }, cell => {
+          const columnLength = cell.value ? cell.value.toString().length : 0
+          maxLength = Math.max(maxLength, columnLength)
+        })
+        column.width = maxLength < 10 ? 10 : maxLength + 2
+      })
+
+      // Generate and save file
+      const buffer = await workbook.xlsx.writeBuffer()
+      const dataBlob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      saveAs(dataBlob, `${filename}.xlsx`)
     } catch (error) {
-      console.error('Error exporting to Excel:', error)
+      console.error('Export to Excel failed:', error)
     } finally {
       setIsExporting(false)
     }
@@ -106,10 +181,12 @@ export function ExportButton({
               
               // Add data table below the chart
               autoTable(doc, {
-                head: [Object.keys(Array.isArray(data) ? data[0] : data)],
-                body: Array.isArray(data) 
-                  ? data.map(row => Object.values(row))
-                  : [Object.values(data)],
+                head: [Object.keys(data[0])],
+                body: data.map(row => 
+                  Object.values(row).map(value => 
+                    value === undefined ? '' : value
+                  )
+                ),
                 startY: 150
               })
               
@@ -122,10 +199,12 @@ export function ExportButton({
       } else {
         // If no chart, just add data table
         autoTable(doc, {
-          head: [Object.keys(Array.isArray(data) ? data[0] : data)],
-          body: Array.isArray(data) 
-            ? data.map(row => Object.values(row))
-            : [Object.values(data)],
+          head: [Object.keys(data[0])],
+          body: data.map(row => 
+            Object.values(row).map(value => 
+              value === undefined ? '' : value
+            )
+          ),
           startY: 40
         })
         doc.save(`${filename}.pdf`)
