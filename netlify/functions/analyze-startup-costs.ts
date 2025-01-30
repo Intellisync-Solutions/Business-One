@@ -1,5 +1,6 @@
 import { Handler } from '@netlify/functions';
 import OpenAI from 'openai';
+import { AnalysisRequest, generateStartupAnalysisPrompt } from '../../src/utils/analysisPrompts';
 
 // Secure environment variable access
 const openaiApiKey = process.env.OPENAI_API_KEY;
@@ -34,58 +35,6 @@ interface FinancialMetrics {
   totalInitialCapital: number;
 }
 
-interface AnalysisRequest {
-  costs: CostTotals;
-  metrics: FinancialMetrics;
-}
-
-const generateAnalysisPrompt = (data: AnalysisRequest): string => {
-  const { costs, metrics } = data;
-  
-  return `As a financial advisor, analyze the following startup cost breakdown and provide strategic insights:
-
-COST BREAKDOWN:
-One-Time Costs:
-- Fixed: $${costs.oneTime.fixed.toLocaleString()}
-- Variable: $${costs.oneTime.variable.toLocaleString()}
-- Total: $${costs.oneTime.total.toLocaleString()}
-
-Monthly Operating Costs:
-- Fixed: $${costs.monthly.fixed.toLocaleString()}
-- Variable: $${costs.monthly.variable.toLocaleString()}
-- Total: $${costs.monthly.total.toLocaleString()}
-
-Inventory Costs:
-- Fixed: $${costs.inventory.fixed.toLocaleString()}
-- Variable: $${costs.inventory.variable.toLocaleString()}
-- Total: $${costs.inventory.total.toLocaleString()}
-
-Key Metrics:
-- Total Startup Cost: $${metrics.totalStartupCost.toLocaleString()}
-- Monthly Operating Cost: $${metrics.monthlyOperatingCost.toLocaleString()}
-- Recommended Cash Reserve (6 months): $${metrics.recommendedCashReserve.toLocaleString()}
-- Total Initial Capital Required: $${metrics.totalInitialCapital.toLocaleString()}
-
-Please provide a concise analysis that includes:
-1. Cost Structure Assessment:
-   - Evaluate the balance between fixed and variable costs
-   - Identify potential risks or advantages in the current cost structure
-   
-2. Financial Health Indicators:
-   - Analyze the sustainability of monthly operating costs
-   - Assess the adequacy of the cash reserve
-   
-3. Strategic Recommendations:
-   - Suggest areas for potential cost optimization
-   - Identify key financial considerations for success
-   
-4. Industry Context:
-   - Compare these metrics to typical startup benchmarks
-   - Highlight any unusual patterns or concerns
-
-Please provide actionable insights that can help in decision-making.`;
-};
-
 export const handler: Handler = async (event, context) => {
   // Only allow POST requests
   if (event.httpMethod !== 'POST') {
@@ -96,17 +45,13 @@ export const handler: Handler = async (event, context) => {
   }
 
   try {
-    // Parse the request body
-    const requestBody = JSON.parse(event.body || '{}');
-    const { costs, metrics } = requestBody;
-
-    // Validate required data
-    if (!costs || !metrics) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Missing required cost data' }),
-      };
+    // Parse and validate request body
+    if (!event.body) {
+      throw new Error('Request body is required');
     }
+
+    const data: AnalysisRequest = JSON.parse(event.body);
+    const prompt = generateStartupAnalysisPrompt(data);
 
     // Generate the analysis
     const completion = await openai.chat.completions.create({
@@ -121,7 +66,7 @@ export const handler: Handler = async (event, context) => {
         },
         {
           role: "user",
-          content: generateAnalysisPrompt({ costs, metrics })
+          content: prompt
         }
       ],
       temperature: 0.7,
