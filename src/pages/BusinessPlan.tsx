@@ -1,12 +1,16 @@
 import { motion } from 'framer-motion'
-import { useState, useEffect } from 'react'
+import { useState} from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BusinessPlanSection } from '@/components/business-plan/BusinessPlanSection'
+import { BusinessPlanDisplay } from '@/components/business-plan/BusinessPlanDisplay'
 import { Button } from '@/components/ui/button'
-import { Save } from 'lucide-react'
+import { FileText, Wand2 } from 'lucide-react'
 import { useToast } from "@/components/ui/use-toast"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import axios from 'axios'
+import { DataPersistence } from '@/components/common/DataPersistence'
 
-const STORAGE_KEY = 'business-plan-data'
+
 
 const SECTIONS = {
   executive: {
@@ -155,20 +159,10 @@ const BusinessPlan = () => {
     company: {},
     market: {}
   })
+  const [generatedBusinessPlan, setGeneratedBusinessPlan] = useState<string | null>(null)
+  const [isGeneratingPlan, setIsGeneratingPlan] = useState(false)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
   const { toast } = useToast()
-
-  // Load data from localStorage on component mount
-  useEffect(() => {
-    const savedData = localStorage.getItem(STORAGE_KEY)
-    if (savedData) {
-      try {
-        const parsedData = JSON.parse(savedData)
-        setFormData(parsedData)
-      } catch (error) {
-        console.error('Error loading saved data:', error)
-      }
-    }
-  }, [])
 
   const handleFieldChange = (section: string, field: string, value: string) => {
     setFormData(prev => ({
@@ -180,58 +174,208 @@ const BusinessPlan = () => {
     }))
   }
 
-  const handleSave = () => {
+  const handleImportBusinessPlan = (importedData: Record<string, Record<string, string>>) => {
+    setFormData(importedData)
+  }
+
+  const validateBusinessPlanFields = () => {
+    const requiredFields: Record<string, string[]> = {
+      executive: ['businessName', 'missionStatement', 'objectives', 'productsServices', 'marketOpportunity', 'financialHighlights', 'ownershipStructure'],
+      company: ['businessOverview', 'visionStatement', 'legalStructure', 'locationDetails'],
+      market: ['industryOverview', 'targetMarket', 'marketSize', 'competitiveAnalysis', 'regulations']
+    }
+
+    for (const [section, fields] of Object.entries(requiredFields)) {
+      for (const field of fields) {
+        if (!formData[section][field] || formData[section][field].trim() === '') {
+          toast({
+            title: "Incomplete Business Plan",
+            description: `Please fill out all required fields in the ${section} section, including ${field}.`,
+            variant: "destructive"
+          })
+          return false
+        }
+      }
+    }
+    return true
+  }
+
+  const handleGenerateFullBusinessPlan = async () => {
+    // Validate all required fields before generating
+    if (!validateBusinessPlanFields()) {
+      return
+    }
+
+    // Combine all sections into a single context
+    const fullContext = {
+      ...formData.executive,
+      ...formData.company,
+      ...formData.market
+    }
+
+    // Ensure all values are strings
+    Object.keys(fullContext).forEach(key => {
+      if (fullContext[key] === undefined || fullContext[key] === null) {
+        delete fullContext[key];
+      } else {
+        fullContext[key] = String(fullContext[key]);
+      }
+    });
+
+    setIsGeneratingPlan(true)
+
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(formData))
-      toast({
-        title: "Success",
-        description: "Business plan saved successfully",
+      console.log('Full Context for Business Plan:', JSON.stringify(fullContext, null, 2));
+
+      const response = await axios.post('/.netlify/functions/generate-business-plan', {
+        section: 'fullBusinessPlan',
+        content: JSON.stringify(fullContext),
+        context: fullContext
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
       })
+
+      if (response.data.businessPlan) {
+        setGeneratedBusinessPlan(response.data.businessPlan)
+        setIsDialogOpen(true)
+        
+        toast({
+          title: "Business Plan Generated",
+          description: "Your comprehensive business plan has been created.",
+          variant: "default"
+        })
+      }
     } catch (error) {
-      console.error('Error saving data:', error)
-      toast({
-        title: "Error",
-        description: "Failed to save business plan",
-        variant: "destructive",
-      })
+      console.error('Full Business Plan Generation Error:', error)
+      
+      // Type guard to check if error is an object with a response property
+      const isAxiosError = (err: unknown): err is { response?: { data?: { details?: string } } } => 
+        typeof err === 'object' && err !== null && 'response' in err
+
+      if (isAxiosError(error)) {
+        toast({
+          title: "Generation Failed",
+          description: error.response?.data?.details || "Unable to generate full business plan. Please try again.",
+          variant: "destructive"
+        })
+      } else {
+        // Handle other types of errors
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        toast({
+          title: "Generation Failed",
+          description: errorMessage,
+          variant: "destructive"
+        })
+      }
+    } finally {
+      setIsGeneratingPlan(false)
     }
   }
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="container mx-auto py-6 max-w-4xl"
-    >
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Business Plan Builder</h1>
-        <Button onClick={handleSave}>
-          <Save className="w-4 h-4 mr-2" />
-          Save Plan
-        </Button>
-      </div>
-      
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3 mb-8">
-          <TabsTrigger value="executive">Executive Summary</TabsTrigger>
-          <TabsTrigger value="company">Company Description</TabsTrigger>
-          <TabsTrigger value="market">Market Analysis</TabsTrigger>
-        </TabsList>
+  const handleDownloadBusinessPlan = () => {
+    if (!generatedBusinessPlan) return
 
-        {Object.entries(SECTIONS).map(([key, section]) => (
-          <TabsContent key={key} value={key}>
-            <BusinessPlanSection
-              title={section.title}
-              description={section.description}
-              fields={section.fields}
-              values={formData[key]}
-              onChange={(field, value) => handleFieldChange(key, field, value)}
+    const blob = new Blob([generatedBusinessPlan], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${formData.executive.businessName || 'business'}-plan.txt`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <div className="container mx-auto p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="max-w-4xl"
+      >
+        <div className="flex justify-between items-center mb-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="executive">Executive Summary</TabsTrigger>
+              <TabsTrigger value="company">Company Description</TabsTrigger>
+              <TabsTrigger value="market">Market Analysis</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          
+          <div className="flex space-x-2">
+            <Button 
+              size="sm" 
+              onClick={handleGenerateFullBusinessPlan}
+              disabled={isGeneratingPlan}
+            >
+              {isGeneratingPlan ? 'Generating...' : 'Generate Business Plan'}
+              <Wand2 className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          {Object.entries(SECTIONS).map(([key, section]) => (
+            <TabsContent key={key} value={key}>
+              <BusinessPlanSection
+                title={section.title}
+                description={section.description}
+                fields={section.fields}
+                values={formData[key]}
+                onChange={(field, value) => handleFieldChange(key, field, value)}
+                onGenerateBusinessPlan={key === 'executive' ? handleGenerateFullBusinessPlan : undefined}
+                businessName={formData.executive.businessName}
+              />
+            </TabsContent>
+          ))}
+        </Tabs>
+      </motion.div>
+
+      <div className="mt-8">
+        <DataPersistence 
+          data={formData} 
+          onDataImport={handleImportBusinessPlan} 
+          dataType="Business Plan" 
+        />
+      </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[800px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Your Generated Business Plan</DialogTitle>
+            <DialogDescription>
+              Review the comprehensive business plan generated for {formData.executive.businessName || 'your business'}.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="p-4">
+            <BusinessPlanDisplay 
+              businessPlan={generatedBusinessPlan || ''} 
+              businessName={formData.executive.businessName} 
             />
-          </TabsContent>
-        ))}
-      </Tabs>
-    </motion.div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsDialogOpen(false)}
+            >
+              Close
+            </Button>
+            <Button 
+              onClick={handleDownloadBusinessPlan}
+              disabled={!generatedBusinessPlan}
+            >
+              Download Business Plan
+              <FileText className="ml-2 h-4 w-4" />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   )
 }
 
