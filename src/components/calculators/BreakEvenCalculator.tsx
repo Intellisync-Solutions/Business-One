@@ -9,6 +9,7 @@ import { HelpCircle } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DataPersistence } from '@/components/common/DataPersistence'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 type CalculationMode = 'standard' | 'findPrice' | 'findUnits' | 'profitTarget'
 
@@ -44,6 +45,49 @@ export function BreakEvenCalculator() {
 
   const [result, setResult] = useState<CalculationResult | null>(null)
   const [chartData, setChartData] = useState<any[]>([])
+  const [aiAnalysis, setAiAnalysis] = useState<{ analysis: string; recommendations: string } | null>(null)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+
+  const generateAiAnalysis = async (breakEvenData: BreakEvenData, breakEvenResult: CalculationResult) => {
+    try {
+      setIsAnalyzing(true)
+      console.log('Sending request with:', { breakEvenData, breakEvenResult })
+      
+      const response = await fetch('/.netlify/functions/analyze-break-even', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ breakEvenData, breakEvenResult }),
+      })
+      
+      console.log('Response status:', response.status)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Error response:', errorText)
+        throw new Error(`Failed to generate analysis: ${errorText}`)
+      }
+      
+      const data = await response.json()
+      console.log('Received data:', data)
+      
+      if (!data.analysis) {
+        console.error('No analysis in response:', data)
+        throw new Error('No analysis received')
+      }
+      
+      setAiAnalysis({
+        analysis: data.analysis,
+        recommendations: data.recommendations || ''
+      })
+    } catch (error) {
+      console.error('Error generating analysis:', error)
+      setAiAnalysis(null)
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
 
   const calculateBreakEven = () => {
     const { 
@@ -144,6 +188,7 @@ export function BreakEvenCalculator() {
 
     setResult(result)
     generateChartData(result)
+    generateAiAnalysis(breakEvenData, result)
   }
 
   const generateChartData = (result: CalculationResult) => {
@@ -157,8 +202,8 @@ export function BreakEvenCalculator() {
       
       chartPoints.push({
         units,
-        revenue: totalRevenue,
-        costs: totalCosts,
+        totalRevenue,
+        totalCosts,
         profit
       })
     }
@@ -187,6 +232,7 @@ export function BreakEvenCalculator() {
           dataType="break-even-analysis"
         />
       </div>
+
       <Card className="p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
@@ -416,99 +462,214 @@ export function BreakEvenCalculator() {
 
           <div className="space-y-4">
             {result && (
-              <>
-                <div className="p-4 bg-secondary rounded-lg">
-                  <h3 className="font-semibold text-lg mb-4">Results</h3>
-                  <div className="space-y-3">
-                    {result.breakEvenUnits && (
-                      <div>
-                        <span className="text-sm font-medium">Break-Even Units</span>
-                        <div className="text-lg font-bold">{Math.ceil(result.breakEvenUnits).toLocaleString()} units</div>
-                      </div>
-                    )}
-                    {result.breakEvenPrice && (
-                      <div>
-                        <span className="text-sm font-medium">Break-Even Price</span>
-                        <div className="text-lg font-bold">${result.breakEvenPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                      </div>
-                    )}
-                    {result.totalRevenueAtBreakEven && (
-                      <div>
-                        <span className="text-sm font-medium">Total Revenue at Break-Even</span>
-                        <div className="text-lg font-bold">${result.totalRevenueAtBreakEven.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                      </div>
-                    )}
-                    {result.contributionMargin && (
-                      <div>
-                        <span className="text-sm font-medium">Contribution Margin per Unit</span>
-                        <div className="text-lg font-bold">${result.contributionMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                      </div>
-                    )}
-                    {result.profitMargin && (
-                      <div>
-                        <span className="text-sm font-medium">Profit Margin</span>
-                        <div className="text-lg font-bold">{result.profitMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</div>
-                      </div>
-                    )}
-                    {result.requiredPrice && (
-                      <div>
-                        <span className="text-sm font-medium">Required Price</span>
-                        <div className="text-lg font-bold">${result.requiredPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                      </div>
-                    )}
-                    {result.targetProfitAmount && (
-                      <div>
-                        <span className="text-sm font-medium">Target Profit Amount</span>
-                        <div className="text-lg font-bold">${result.targetProfitAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                      </div>
-                    )}
-                  </div>
+              <div className="p-4 bg-secondary rounded-lg">
+                <h3 className="font-semibold text-lg mb-4">Results</h3>
+                <div className="space-y-3">
+                  {result.breakEvenUnits && (
+                    <div>
+                      <span className="text-sm font-medium">Break-Even Units</span>
+                      <div className="text-lg font-bold">{Math.ceil(result.breakEvenUnits).toLocaleString()} units</div>
+                    </div>
+                  )}
+                  {result.breakEvenPrice && (
+                    <div>
+                      <span className="text-sm font-medium">Break-Even Price</span>
+                      <div className="text-lg font-bold">${result.breakEvenPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    </div>
+                  )}
+                  {result.totalRevenueAtBreakEven && (
+                    <div>
+                      <span className="text-sm font-medium">Total Revenue at Break-Even</span>
+                      <div className="text-lg font-bold">${result.totalRevenueAtBreakEven.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    </div>
+                  )}
+                  {result.contributionMargin && (
+                    <div>
+                      <span className="text-sm font-medium">Contribution Margin per Unit</span>
+                      <div className="text-lg font-bold">${result.contributionMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    </div>
+                  )}
+                  {result.profitMargin && (
+                    <div>
+                      <span className="text-sm font-medium">Profit Margin</span>
+                      <div className="text-lg font-bold">{result.profitMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</div>
+                    </div>
+                  )}
+                  {result.requiredPrice && (
+                    <div>
+                      <span className="text-sm font-medium">Required Price</span>
+                      <div className="text-lg font-bold">${result.requiredPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    </div>
+                  )}
+                  {result.targetProfitAmount && (
+                    <div>
+                      <span className="text-sm font-medium">Target Profit Amount</span>
+                      <div className="text-lg font-bold">${result.targetProfitAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    </div>
+                  )}
                 </div>
-              </>
+              </div>
             )}
           </div>
         </div>
       </Card>
 
-      {chartData.length > 0 && (
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {result && (
+          <>
+            <Card className="p-6">
+              <h3 className="text-xl font-semibold mb-4">Break-Even Results</h3>
+              <div className="space-y-3">
+                {result.breakEvenUnits && (
+                  <div>
+                    <span className="text-sm font-medium">Break-Even Units</span>
+                    <div className="text-lg font-bold">{Math.ceil(result.breakEvenUnits).toLocaleString()} units</div>
+                  </div>
+                )}
+                {result.breakEvenPrice && (
+                  <div>
+                    <span className="text-sm font-medium">Break-Even Price</span>
+                    <div className="text-lg font-bold">${result.breakEvenPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                  </div>
+                )}
+                {result.totalRevenueAtBreakEven && (
+                  <div>
+                    <span className="text-sm font-medium">Total Revenue at Break-Even</span>
+                    <div className="text-lg font-bold">${result.totalRevenueAtBreakEven.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                  </div>
+                )}
+                {result.contributionMargin && (
+                  <div>
+                    <span className="text-sm font-medium">Contribution Margin per Unit</span>
+                    <div className="text-lg font-bold">${result.contributionMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                  </div>
+                )}
+                {result.profitMargin && (
+                  <div>
+                    <span className="text-sm font-medium">Profit Margin</span>
+                    <div className="text-lg font-bold">{result.profitMargin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</div>
+                  </div>
+                )}
+                {result.requiredPrice && (
+                  <div>
+                    <span className="text-sm font-medium">Required Price</span>
+                    <div className="text-lg font-bold">${result.requiredPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                  </div>
+                )}
+                {result.targetProfitAmount && (
+                  <div>
+                    <span className="text-sm font-medium">Target Profit Amount</span>
+                    <div className="text-lg font-bold">${result.targetProfitAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            {chartData.length > 0 && (
+              <Card className="p-6">
+                <h3 className="font-semibold text-lg mb-4">Break-Even Chart</h3>
+                <div className="h-[400px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="units" 
+                        label={{ value: 'Units', position: 'insideBottom', offset: -5 }}
+                      />
+                      <YAxis 
+                        label={{ 
+                          value: 'Amount ($)', 
+                          angle: -90, 
+                          position: 'insideLeft',
+                          offset: 15
+                        }}
+                      />
+                      <Tooltip 
+                        formatter={(value: number) => ['$' + value.toLocaleString()]}
+                        labelFormatter={(label: number) => `${label.toLocaleString()} units`}
+                      />
+                      <Legend />
+                      <Line 
+                        type="monotone" 
+                        dataKey="totalRevenue" 
+                        name="Total Revenue"
+                        stroke="#10b981" 
+                        strokeWidth={2}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="totalCosts" 
+                        name="Total Costs"
+                        stroke="#ef4444" 
+                        strokeWidth={2}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            )}
+          </>
+        )}
+        
         <Card className="p-6">
-          <h3 className="font-semibold text-lg mb-4">Break-Even Chart</h3>
-          <div className="h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="units" 
-                  label={{ value: 'Units', position: 'insideBottom', offset: -5 }} 
-                />
-                <YAxis 
-                  label={{ value: 'Amount ($)', angle: -90, position: 'insideLeft' }} 
-                />
-                <Tooltip />
-                <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="revenue" 
-                  stroke="#10b981" 
-                  name="Total Revenue" 
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="costs" 
-                  stroke="#ef4444" 
-                  name="Total Costs" 
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="profit" 
-                  stroke="#3b82f6" 
-                  name="Profit/Loss" 
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          <Tabs defaultValue="analysis" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="analysis">AI Analysis</TabsTrigger>
+              <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
+            </TabsList>
+            <TabsContent value="analysis" className="mt-4 space-y-4">
+              <div className="text-sm">
+                {isAnalyzing ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : aiAnalysis ? (
+                  <div className="prose prose-sm max-w-none dark:prose-invert">
+                    <div 
+                      className="whitespace-pre-wrap" 
+                      dangerouslySetInnerHTML={{ 
+                        __html: aiAnalysis.analysis
+                          .replace(/\n/g, '<br/>')
+                          .replace(/### (.*?)\n/g, '<h3 class="font-bold text-lg mt-4 mb-2">$1</h3>')
+                          .replace(/#### (.*?)\n/g, '<h4 class="font-bold text-md mt-3 mb-2">$1</h4>')
+                          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                          .replace(/- /g, '• ')
+                      }} 
+                    />
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">Calculate your break-even point to see AI analysis.</p>
+                )}
+              </div>
+            </TabsContent>
+            <TabsContent value="recommendations" className="mt-4 space-y-4">
+              <div className="text-sm">
+                {isAnalyzing ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : aiAnalysis?.recommendations ? (
+                  <div className="prose prose-sm max-w-none dark:prose-invert">
+                    <div 
+                      className="whitespace-pre-wrap" 
+                      dangerouslySetInnerHTML={{ 
+                        __html: aiAnalysis.recommendations
+                          .replace(/\n/g, '<br/>')
+                          .replace(/### (.*?)\n/g, '<h3 class="font-bold text-lg mt-4 mb-2">$1</h3>')
+                          .replace(/#### (.*?)\n/g, '<h4 class="font-bold text-md mt-3 mb-2">$1</h4>')
+                          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                          .replace(/- /g, '• ')
+                      }} 
+                    />
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">Calculate your break-even point to see AI recommendations.</p>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
         </Card>
-      )}
+      </div>
     </div>
   )
 }
