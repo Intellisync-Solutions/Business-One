@@ -227,15 +227,20 @@ const BusinessPlan = () => {
     try {
       console.log('Full Context for Business Plan:', JSON.stringify(fullContext, null, 2));
 
-      const response = await axios.post('/.netlify/functions/generate-business-plan', {
-        section: 'fullBusinessPlan',
-        content: JSON.stringify(fullContext),
-        context: fullContext
-      }, {
-        headers: {
-          'Content-Type': 'application/json'
+      const response = await axios.post(
+        process.env.NODE_ENV === 'development' 
+          ? 'http://localhost:9999/.netlify/functions/generate-business-plan'
+          : '/.netlify/functions/generate-business-plan', 
+        {
+          section: 'fullBusinessPlan',
+          content: JSON.stringify(fullContext),
+          context: fullContext
+        }, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
         }
-      })
+      )
 
       if (response.data.businessPlan) {
         setGeneratedBusinessPlan(response.data.businessPlan)

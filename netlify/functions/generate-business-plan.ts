@@ -323,7 +323,7 @@ OUTPUT FORMAT:
 - Estimate potential financial projections if data allows
 `;
 
-export const handler: Handler = async (event, context) => {
+const handler: Handler = async (event, context) => {
   // Add CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -504,3 +504,5 @@ export const handler: Handler = async (event, context) => {
     };
   }
 };
+
+export { handler };

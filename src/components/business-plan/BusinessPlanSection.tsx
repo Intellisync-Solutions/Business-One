@@ -67,19 +67,28 @@ export function BusinessPlanSection({
     setIsRemixing(prev => ({ ...prev, [field]: true }))
 
     try {
-      const response = await axios.post('/.netlify/functions/generate-business-plan', {
-        section: field,
-        content: values[field] || '',
-        context: {
-          businessName: businessName,
-          // Include other relevant context from values
-          ...Object.fromEntries(
-            Object.entries(values).filter(([key]) => 
-              ['missionStatement', 'objectives', 'productsServices', 'marketOpportunity'].includes(key)
+      const response = await axios.post(
+        process.env.NODE_ENV === 'development' 
+          ? 'http://localhost:9999/.netlify/functions/generate-business-plan'
+          : '/.netlify/functions/generate-business-plan', 
+        {
+          section: field,
+          content: values[field] || '',
+          context: {
+            businessName: businessName,
+            // Include other relevant context from values
+            ...Object.fromEntries(
+              Object.entries(values).filter(([key]) => 
+                ['missionStatement', 'objectives', 'productsServices', 'marketOpportunity'].includes(key)
+              )
             )
-          )
+          }
+        }, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
         }
-      })
+      )
 
       if (response.data.remixedSection) {
         // Update the field with the remixed content

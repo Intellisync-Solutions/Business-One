@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout'
+import ChatWidget from './components/ChatWidget'
 
 import BusinessPlan from './pages/BusinessPlan'
 
@@ -27,15 +28,15 @@ function App() {
           <Route path="/calculators/break-even-analysis" element={<BreakEvenAnalysis />} />
           <Route path="/calculators/scenario-planner" element={<ScenarioPlanner />} />
           <Route path="/calculators/pricing-strategy" element={<PricingStrategy />} />
-     
           <Route path="/calculators/financial-ratios" element={<FinancialRatios />} />
           <Route path="/calculators/business-valuation" element={<BusinessValuation />} />
+          <Route path="/policies/privacy" element={<PrivacyPolicy />} />
+          <Route path="/policies/terms" element={<TermsOfService />} />
+          <Route path="/policies/cookies" element={<CookiesPolicy />} />
         </Route>
-        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-        <Route path="/terms-of-service" element={<TermsOfService />} />
-        <Route path="/cookies-policy" element={<CookiesPolicy />} />
       </Routes>
       <Toaster />
+      <ChatWidget />
     </div>
   )
 }
