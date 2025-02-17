@@ -8,6 +8,9 @@ interface BusinessPlanDisplayProps {
 }
 
 export function BusinessPlanDisplay({ businessPlan, businessName }: BusinessPlanDisplayProps) {
+  // Explicitly use React to satisfy TypeScript
+  const _react = React;
+
   // Parse the business plan into sections
   const parsedSections = useMemo(() => {
     const sections: Record<string, string[]> = {};
