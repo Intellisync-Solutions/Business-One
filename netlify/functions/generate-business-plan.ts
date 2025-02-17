@@ -244,75 +244,6 @@ const SECTION_PROMPTS: Record<string, (content: string, context?: any) => string
   }
 };
 
-const generateFullBusinessPlan = async (content: string, context: Record<string, string>) => {
-  // Prepare the prompt for full business plan generation
-  const prompt = `
-    Generate a comprehensive, professional business plan based on the following context:
-
-    Business Name: ${context?.businessName || 'Unnamed Business'}
-    Mission Statement: ${context?.missionStatement || 'No mission statement provided'}
-    Business Objectives: ${context?.objectives || 'No objectives specified'}
-
-    Business Overview: ${context?.businessOverview || 'No business overview provided'}
-    Vision Statement: ${context?.visionStatement || 'No vision statement provided'}
-    Legal Structure: ${context?.legalStructure || 'Not specified'}
-
-    Industry Overview: ${context?.industryOverview || 'No industry context provided'}
-    Target Market: ${context?.targetMarket || 'No target market defined'}
-    Market Size & Growth: ${context?.marketSize || 'Market size not specified'}
-    Competitive Landscape: ${context?.competitiveAnalysis || 'No competitive analysis provided'}
-    Regulatory Environment: ${context?.regulations || 'No regulatory information provided'}
-
-    Products/Services: ${context?.productsServices || 'No products or services described'}
-    Market Opportunity: ${context?.marketOpportunity || 'No market opportunity outlined'}
-    Financial Highlights: ${context?.financialHighlights || 'No financial information provided'}
-
-    Instructions:
-    1. Create a well-structured, professional business plan
-    2. Use a clear, concise, and compelling language
-    3. Organize the plan into standard sections:
-       a. Executive Summary
-       b. Company Description
-       c. Market Analysis
-       d. Products and Services
-       e. Marketing and Sales Strategy
-       f. Financial Projections
-    4. Ensure the plan tells a coherent story about the business
-    5. Highlight unique value propositions and competitive advantages
-    6. Provide realistic and data-driven insights
-    7. Format the document for readability with appropriate headings and spacing
-    8. If any section lacks detail, use professional business writing techniques to elaborate
-  `;
-
-  try {
-    // Generate the business plan using OpenAI
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system", 
-          content: "You are a professional business plan writer. Create a comprehensive, well-structured business plan that is clear, compelling, and tailored to the specific business context."
-        },
-        {
-          role: "user", 
-          content: prompt
-        }
-      ],
-      max_tokens: 2000,
-      temperature: 0.7
-    });
-
-    // Return the generated business plan
-    return {
-      businessPlan: response.choices[0].message.content || 'Unable to generate business plan',
-      tokens_used: response.usage?.total_tokens || null
-    };
-  } catch (error) {
-    console.error('Error generating full business plan:', error);
-    throw error;
-  }
-};
-
 const generateBusinessPlanPrompt = (data: BusinessPlanRequest) => `
 You are a professional business plan writer. Generate a comprehensive, well-structured business plan based on the following inputs:
 
@@ -357,6 +288,42 @@ OUTPUT FORMAT:
 - Provide actionable insights
 - Estimate potential financial projections if data allows
 `;
+
+const generateFullBusinessPlan = async (content: string, context: Record<string, string>) => {
+  // Parse the content as BusinessPlanRequest
+  const businessPlanData: BusinessPlanRequest = JSON.parse(content);
+
+  // Generate the prompt using the business plan data
+  const prompt = generateBusinessPlanPrompt(businessPlanData);
+
+  try {
+    // Generate the business plan using OpenAI
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system", 
+          content: "You are a professional business plan writer. Create a comprehensive, well-structured business plan that is clear, compelling, and tailored to the specific business context."
+        },
+        {
+          role: "user", 
+          content: prompt
+        }
+      ],
+      max_tokens: 2000,
+      temperature: 0.7
+    });
+
+    // Return the generated business plan
+    return {
+      businessPlan: response.choices[0].message.content || 'Unable to generate business plan',
+      tokens_used: response.usage?.total_tokens || null
+    };
+  } catch (error) {
+    console.error('Error generating full business plan:', error);
+    throw error;
+  }
+};
 
 const handler: Handler = async (event, context) => {
   // CORS headers
