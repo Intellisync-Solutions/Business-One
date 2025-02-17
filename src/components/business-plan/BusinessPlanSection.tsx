@@ -133,7 +133,31 @@ export function BusinessPlanSection({
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => onGenerateBusinessPlan?.(values.toString())}
+                onClick={() => {
+                  // Prepare the business plan request object
+                  const businessPlanRequest = {
+                    businessName: values.businessName || '',
+                    location: values.location || '',
+                    missionStatement: values.missionStatement || '',
+                    objectives: values.objectives || '',
+                    productsServices: values.productsServices || '',
+                    marketOpportunity: values.marketOpportunity || '',
+                    financialHighlights: values.financialHighlights || '',
+                    ownershipStructure: values.ownershipStructure || '',
+                    businessOverview: values.businessOverview || '',
+                    visionStatement: values.visionStatement || '',
+                    legalStructure: values.legalStructure || '',
+                    locationDetails: values.locationDetails || '',
+                    industryOverview: values.industryOverview || '',
+                    targetMarket: values.targetMarket || '',
+                    marketSize: values.marketSize || '',
+                    competitiveAnalysis: values.competitiveAnalysis || '',
+                    regulations: values.regulations || ''
+                  };
+
+                  // Convert to JSON string for the Netlify function
+                  onGenerateBusinessPlan?.(JSON.stringify(businessPlanRequest));
+                }}
               >
                 Generate Business Plan
                 <Wand2 className="ml-2 h-4 w-4" />
