@@ -238,7 +238,15 @@ const SECTION_PROMPTS: Record<string, (content: string, context?: any) => string
     - Demonstrate proactive risk management
   `,
 
-  fullBusinessPlan: (content, context) => `
+  fullBusinessPlan: (content: string, context: any) => {
+    // This is now just a placeholder, actual generation happens in the handler
+    return `Generating full business plan for ${context?.businessName || 'Business'}`;
+  }
+};
+
+const generateFullBusinessPlan = async (content: string, context: Record<string, string>) => {
+  // Prepare the prompt for full business plan generation
+  const prompt = `
     Generate a comprehensive, professional business plan based on the following context:
 
     Business Name: ${context?.businessName || 'Unnamed Business'}
@@ -251,8 +259,8 @@ const SECTION_PROMPTS: Record<string, (content: string, context?: any) => string
 
     Industry Overview: ${context?.industryOverview || 'No industry context provided'}
     Target Market: ${context?.targetMarket || 'No target market defined'}
-    Market Size: ${context?.marketSize || 'Market size not specified'}
-    Competitive Analysis: ${context?.competitiveAnalysis || 'No competitive analysis provided'}
+    Market Size & Growth: ${context?.marketSize || 'Market size not specified'}
+    Competitive Landscape: ${context?.competitiveAnalysis || 'No competitive analysis provided'}
     Regulatory Environment: ${context?.regulations || 'No regulatory information provided'}
 
     Products/Services: ${context?.productsServices || 'No products or services described'}
@@ -273,9 +281,36 @@ const SECTION_PROMPTS: Record<string, (content: string, context?: any) => string
     5. Highlight unique value propositions and competitive advantages
     6. Provide realistic and data-driven insights
     7. Format the document for readability with appropriate headings and spacing
-    8. If any section lacks detail, use professional business writing to fill in logical assumptions
-    9. Maintain a professional tone that would be suitable for investors, partners, and stakeholders
-  `
+    8. If any section lacks detail, use professional business writing techniques to elaborate
+  `;
+
+  try {
+    // Generate the business plan using OpenAI
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system", 
+          content: "You are a professional business plan writer. Create a comprehensive, well-structured business plan that is clear, compelling, and tailored to the specific business context."
+        },
+        {
+          role: "user", 
+          content: prompt
+        }
+      ],
+      max_tokens: 2000,
+      temperature: 0.7
+    });
+
+    // Return the generated business plan
+    return {
+      businessPlan: response.choices[0].message.content || 'Unable to generate business plan',
+      tokens_used: response.usage?.total_tokens || null
+    };
+  } catch (error) {
+    console.error('Error generating full business plan:', error);
+    throw error;
+  }
 };
 
 const generateBusinessPlanPrompt = (data: BusinessPlanRequest) => `
@@ -303,10 +338,10 @@ Location & Facilities: ${data.locationDetails || 'Not Described'}
 
 MARKET ANALYSIS
 Industry Overview: ${data.industryOverview || 'Not Analyzed'}
-Target Market: ${data.targetMarket || 'Not Defined'}
-Market Size & Growth: ${data.marketSize || 'Not Quantified'}
-Competitive Landscape: ${data.competitiveAnalysis || 'Not Evaluated'}
-Regulatory Environment: ${data.regulations || 'Not Addressed'}
+Target Market: ${data.targetMarket || 'No target market defined'}
+Market Size & Growth: ${data.marketSize || 'Market size not specified'}
+Competitive Landscape: ${data.competitiveAnalysis || 'No competitive analysis provided'}
+Regulatory Environment: ${data.regulations || 'No regulatory information provided'}
 
 INSTRUCTIONS:
 1. Create a professional, comprehensive business plan
@@ -373,61 +408,94 @@ const handler: Handler = async (event, context) => {
 
     // Validate section and content for remix requests
     if (requestBody.section && requestBody.content) {
-      // Validate section is a valid RemixSection
-      const validSections: RemixSection[] = [
-        'missionStatement', 'objectives', 'productsServices', 
-        'marketOpportunity', 'financialHighlights', 'businessOverview', 
-        'visionStatement', 'industryOverview', 'targetMarket', 
-        'marketSize', 'competitiveAnalysis', 'regulations', 
-        'fullBusinessPlan'
-      ];
+      const section = requestBody.section;
+      const content = requestBody.content;
+      const context = requestBody.context || {};
 
-      if (!validSections.includes(requestBody.section)) {
-        console.error(`Invalid section: ${requestBody.section}`);
+      if (section === 'fullBusinessPlan') {
+        try {
+          const generatedPlan = await generateFullBusinessPlan(content, context);
+          
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ 
+              businessPlan: generatedPlan.businessPlan,
+              success: true,
+              tokens_used: generatedPlan.tokens_used
+            })
+          };
+        } catch (planGenerationError) {
+          console.error('Full Business Plan Generation Error:', planGenerationError);
+          
+          return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ 
+              error: 'Failed to generate full business plan',
+              details: planGenerationError instanceof Error ? planGenerationError.message : String(planGenerationError),
+              success: false
+            })
+          };
+        }
+      } else {
+        // Validate section is a valid RemixSection
+        const validSections: RemixSection[] = [
+          'missionStatement', 'objectives', 'productsServices', 
+          'marketOpportunity', 'financialHighlights', 'businessOverview', 
+          'visionStatement', 'industryOverview', 'targetMarket', 
+          'marketSize', 'competitiveAnalysis', 'regulations', 
+          'fullBusinessPlan'
+        ];
+
+        if (!validSections.includes(section)) {
+          console.error(`Invalid section: ${section}`);
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ 
+              error: 'Invalid section',
+              details: `Section must be one of: ${validSections.join(', ')}`
+            })
+          };
+        }
+
+        const prompt = SECTION_PROMPTS[section as RemixSection](
+          content, 
+          context
+        );
+
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "system", 
+              content: "You are a professional business plan writer. Enhance and refine the given section with clarity and precision."
+            },
+            {
+              role: "user", 
+              content: prompt
+            }
+          ],
+          max_tokens: 1000,
+          temperature: 0.7
+        });
+
+        const remixedContent = response.choices[0].message.content || '';
+
         return {
-          statusCode: 400,
-          headers,
+          statusCode: 200,
           body: JSON.stringify({ 
-            error: 'Invalid section',
-            details: `Section must be one of: ${validSections.join(', ')}`
-          })
+            remixedSection: remixedContent,
+            success: true,
+            tokens_used: response.usage?.total_tokens 
+          }),
+          headers: {
+            'Content-Type': 'application/json',
+            ...headers
+          }
         };
       }
-
-      const prompt = SECTION_PROMPTS[requestBody.section as RemixSection](
-        requestBody.content, 
-        requestBody.context || {}
-      );
-
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system", 
-            content: "You are a professional business plan writer. Enhance and refine the given section with clarity and precision."
-          },
-          {
-            role: "user", 
-            content: prompt
-          }
-        ],
-        max_tokens: 1000,
-        temperature: 0.7
-      });
-
-      const remixedContent = response.choices[0].message.content || '';
-
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ 
-          remixedSection: remixedContent,
-          tokens_used: response.usage?.total_tokens 
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-          ...headers
-        }
-      };
     } else {
       // Validate full business plan request
       const data: BusinessPlanRequest = requestBody;
@@ -469,6 +537,7 @@ const handler: Handler = async (event, context) => {
         statusCode: 200,
         body: JSON.stringify({ 
           businessPlan: generatedPlan,
+          success: true,
           tokens_used: response.usage?.total_tokens 
         }),
         headers: {

@@ -242,14 +242,36 @@ const BusinessPlan = () => {
         }
       )
 
-      if (response.data.businessPlan) {
-        setGeneratedBusinessPlan(response.data.businessPlan)
+      console.log('Full Response:', response);
+
+      // Check for successful response with businessPlan or remixedSection
+      const businessPlan = 
+        response.data?.businessPlan || 
+        response.data?.remixedSection ||
+        (response.data?.success && (response.data?.businessPlan || response.data?.remixedSection));
+
+      if (businessPlan) {
+        console.log('Generated Business Plan:', businessPlan);
+        
+        // Ensure businessPlan is a string
+        const planText = typeof businessPlan === 'object' 
+          ? JSON.stringify(businessPlan, null, 2) 
+          : String(businessPlan);
+
+        setGeneratedBusinessPlan(planText)
         setIsDialogOpen(true)
         
         toast({
           title: "Business Plan Generated",
           description: "Your comprehensive business plan has been created.",
           variant: "default"
+        })
+      } else {
+        console.error('No business plan generated', response.data);
+        toast({
+          title: "Generation Failed",
+          description: "Unable to generate business plan. No data received.",
+          variant: "destructive"
         })
       }
     } catch (error) {
