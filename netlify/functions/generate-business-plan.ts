@@ -359,107 +359,135 @@ OUTPUT FORMAT:
 `;
 
 const handler: Handler = async (event, context) => {
-  // Add CORS headers
+  // CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS'
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Content-Type': 'application/json'
   };
 
   // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
     return {
-      statusCode: 204,
-      headers
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ message: 'Successful preflight call.' })
     };
   }
 
-  // Validate request method
+  // Validate HTTP method
   if (event.httpMethod !== 'POST') {
+    console.error(`Invalid HTTP method: ${event.httpMethod}`);
     return {
       statusCode: 405,
       headers,
-      body: JSON.stringify({ error: 'Method Not Allowed' })
+      body: JSON.stringify({ 
+        error: 'Method Not Allowed', 
+        details: `Received ${event.httpMethod}, expected POST` 
+      })
+    };
+  }
+
+  // Validate request body
+  if (!event.body) {
+    console.error('No request body provided');
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({ 
+        error: 'Bad Request', 
+        details: 'No request body provided' 
+      })
     };
   }
 
   try {
-    // Log raw request body for debugging
-    console.log('Raw request body:', event.body);
+    // Parse request body
+    const requestBody = JSON.parse(event.body);
+    console.log('Received request body:', JSON.stringify(requestBody, null, 2));
 
-    // Parse incoming request body
-    const requestBody = JSON.parse(event.body || '{}');
+    // Validate section and content for requests
+    const section = requestBody.section;
+    const content = requestBody.content;
+    const context = requestBody.context || {};
 
-    // Log parsed request body
-    console.log('Parsed request body:', JSON.stringify(requestBody, null, 2));
-
-    // Detailed request body validation
-    if (!requestBody) {
-      console.error('Empty request body received');
+    // Validate required fields
+    if (!section) {
+      console.error('Missing section in request');
       return {
         statusCode: 400,
         headers,
         body: JSON.stringify({ 
-          error: 'Missing request body',
-          details: 'Request body cannot be empty'
+          error: 'Bad Request', 
+          details: 'Missing section in request' 
         })
       };
     }
 
-    // Validate section and content for remix requests
-    if (requestBody.section && requestBody.content) {
-      const section = requestBody.section;
-      const content = requestBody.content;
-      const context = requestBody.context || {};
+    // Validate OpenAI configuration
+    if (!openaiApiKey) {
+      console.error('OpenAI API Key is not configured');
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Server Configuration Error', 
+          details: 'OpenAI API Key is not configured' 
+        })
+      };
+    }
 
-      if (section === 'fullBusinessPlan') {
-        try {
-          const generatedPlan = await generateFullBusinessPlan(content, context);
-          
-          return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({ 
-              businessPlan: generatedPlan.businessPlan,
-              success: true,
-              tokens_used: generatedPlan.tokens_used
-            })
-          };
-        } catch (planGenerationError) {
-          console.error('Full Business Plan Generation Error:', planGenerationError);
-          
-          return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({ 
-              error: 'Failed to generate full business plan',
-              details: planGenerationError instanceof Error ? planGenerationError.message : String(planGenerationError),
-              success: false
-            })
-          };
-        }
-      } else {
-        // Validate section is a valid RemixSection
-        const validSections: RemixSection[] = [
-          'missionStatement', 'objectives', 'productsServices', 
-          'marketOpportunity', 'financialHighlights', 'businessOverview', 
-          'visionStatement', 'industryOverview', 'targetMarket', 
-          'marketSize', 'competitiveAnalysis', 'regulations', 
-          'fullBusinessPlan'
-        ];
+    // Process different sections
+    if (section === 'fullBusinessPlan') {
+      try {
+        const generatedPlan = await generateFullBusinessPlan(content, context);
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ 
+            businessPlan: generatedPlan.businessPlan,
+            success: true,
+            tokens_used: generatedPlan.tokens_used
+          })
+        };
+      } catch (planGenerationError) {
+        console.error('Full Business Plan Generation Error:', planGenerationError);
+        
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ 
+            error: 'Failed to generate full business plan',
+            details: planGenerationError instanceof Error ? planGenerationError.message : String(planGenerationError),
+            success: false
+          })
+        };
+      }
+    } else {
+      // Handle other section remix requests
+      const validSections: RemixSection[] = [
+        'missionStatement', 'objectives', 'productsServices', 
+        'marketOpportunity', 'financialHighlights', 'businessOverview', 
+        'visionStatement', 'industryOverview', 'targetMarket', 
+        'marketSize', 'competitiveAnalysis', 'regulations', 
+        'fullBusinessPlan'
+      ];
 
-        if (!validSections.includes(section)) {
-          console.error(`Invalid section: ${section}`);
-          return {
-            statusCode: 400,
-            headers,
-            body: JSON.stringify({ 
-              error: 'Invalid section',
-              details: `Section must be one of: ${validSections.join(', ')}`
-            })
-          };
-        }
+      if (!validSections.includes(section as RemixSection)) {
+        console.error(`Invalid section: ${section}`);
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ 
+            error: 'Invalid section',
+            details: `Section must be one of: ${validSections.join(', ')}`
+          })
+        };
+      }
 
+      try {
         const prompt = SECTION_PROMPTS[section as RemixSection](
           content, 
           context
@@ -485,80 +513,37 @@ const handler: Handler = async (event, context) => {
 
         return {
           statusCode: 200,
+          headers,
           body: JSON.stringify({ 
             remixedSection: remixedContent,
             success: true,
             tokens_used: response.usage?.total_tokens 
-          }),
-          headers: {
-            'Content-Type': 'application/json',
-            ...headers
-          }
+          })
         };
-      }
-    } else {
-      // Validate full business plan request
-      const data: BusinessPlanRequest = requestBody;
-
-      // Enhanced validation with detailed logging
-      if (!data.businessName && !data.missionStatement) {
-        console.error('Missing essential business information', data);
+      } catch (remixError) {
+        console.error(`Error remixing section ${section}:`, remixError);
         return {
-          statusCode: 400,
+          statusCode: 500,
           headers,
           body: JSON.stringify({ 
-            error: 'Missing essential business information',
-            details: 'Please provide at least a business name or mission statement',
-            receivedData: data
+            error: `Failed to remix ${section} section`,
+            details: remixError instanceof Error ? remixError.message : String(remixError),
+            success: false
           })
         };
       }
-
-      // Generate business plan using OpenAI
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system", 
-            content: "You are a professional business plan writer. Generate a clear, structured, and compelling business plan."
-          },
-          {
-            role: "user", 
-            content: generateBusinessPlanPrompt(data)
-          }
-        ],
-        max_tokens: 3000,
-        temperature: 0.7
-      });
-
-      const generatedPlan = response.choices[0].message.content || '';
-
-      return {
-        statusCode: 200,
-        body: JSON.stringify({ 
-          businessPlan: generatedPlan,
-          success: true,
-          tokens_used: response.usage?.total_tokens 
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-          ...headers
-        }
-      };
     }
-
   } catch (error) {
-    console.error('Error in generate-business-plan function:', error);
+    console.error('Unexpected error in handler:', error);
     
     // Handle different types of errors
-    if (error instanceof OpenAI.APIError) {
+    if (error instanceof SyntaxError) {
       return {
-        statusCode: error.status || 500,
+        statusCode: 400,
         headers,
         body: JSON.stringify({ 
-          error: 'OpenAI API Error',
-          message: error.message,
-          type: error.type
+          error: 'Invalid JSON', 
+          details: 'Request body is not valid JSON' 
         })
       };
     }
@@ -568,7 +553,8 @@ const handler: Handler = async (event, context) => {
       headers,
       body: JSON.stringify({ 
         error: 'Internal Server Error',
-        message: error instanceof Error ? error.message : 'Unknown error occurred'
+        details: error instanceof Error ? error.message : 'Unknown error occurred',
+        success: false
       })
     };
   }
