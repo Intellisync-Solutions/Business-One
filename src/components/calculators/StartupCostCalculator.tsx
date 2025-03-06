@@ -14,6 +14,7 @@ import { DataPersistence } from '@/components/common/DataPersistence'
 import { useCalculatorData } from '@/hooks/useCalculatorData'
 import { StartupCostAnalysis } from './StartupCostAnalysis'
 
+
 interface StartupCost {
   name: string;
   amount: number;
@@ -41,13 +42,9 @@ export function StartupCostCalculator() {
     activeTab: 'input'
   })
 
-  // Explicitly reference costData to satisfy linter
-  console.log('Current cost data:', costData)
-
   const handleAddCost = () => {
     const { name, amount, category, type, description } = costData.newCost
     
-    // Improved validation
     if (!name.trim()) {
       // Consider adding a toast or error notification
       return
@@ -56,6 +53,13 @@ export function StartupCostCalculator() {
     if (amount <= 0) {
       // Consider adding a toast or error notification
       return
+    }
+
+    // Optional: Add a maximum number of costs if desired
+    const MAX_COSTS = 50; // Adjust as needed
+    if (costData.costs.length >= MAX_COSTS) {
+      // Consider adding a toast or error notification
+      return;
     }
 
     setCostData({
@@ -68,7 +72,9 @@ export function StartupCostCalculator() {
         type: 'fixed',
         description: ''
       }
-    })
+    });
+
+   
   }
 
   const handleRemoveCost = (index: number) => {
@@ -109,46 +115,99 @@ export function StartupCostCalculator() {
   }
 
   // Calculate totals with expense type
+  const oneTimeCosts = {
+    fixed: costData.costs
+      .filter(cost => cost.category === 'oneTime' && cost.type === 'fixed')
+      .reduce((sum, cost) => sum + cost.amount, 0),
+    variable: costData.costs
+      .filter(cost => cost.category === 'oneTime' && cost.type === 'variable')
+      .reduce((sum, cost) => sum + cost.amount, 0),
+    total: costData.costs
+      .filter(cost => cost.category === 'oneTime')
+      .reduce((sum, cost) => sum + cost.amount, 0)
+  };
+
+  const monthlyCosts = {
+    fixed: costData.costs
+      .filter(cost => cost.category === 'monthly' && cost.type === 'fixed')
+      .reduce((sum, cost) => sum + cost.amount, 0),
+    variable: costData.costs
+      .filter(cost => cost.category === 'monthly' && cost.type === 'variable')
+      .reduce((sum, cost) => sum + cost.amount, 0),
+    total: costData.costs
+      .filter(cost => cost.category === 'monthly')
+      .reduce((sum, cost) => sum + cost.amount, 0)
+  };
+
+  const inventoryCosts = {
+    fixed: costData.costs
+      .filter(cost => cost.category === 'inventory' && cost.type === 'fixed')
+      .reduce((sum, cost) => sum + cost.amount, 0),
+    variable: costData.costs
+      .filter(cost => cost.category === 'inventory' && cost.type === 'variable')
+      .reduce((sum, cost) => sum + cost.amount, 0),
+    total: costData.costs
+      .filter(cost => cost.category === 'inventory')
+      .reduce((sum, cost) => sum + cost.amount, 0)
+  };
+
+  // Ensure totals have the exact structure expected by StartupCostAnalysis
   const totals = {
     oneTime: {
-      fixed: costData.costs
-        .filter(cost => cost.category === 'oneTime' && cost.type === 'fixed')
-        .reduce((sum, cost) => sum + cost.amount, 0),
-      variable: costData.costs
-        .filter(cost => cost.category === 'oneTime' && cost.type === 'variable')
-        .reduce((sum, cost) => sum + cost.amount, 0),
-      total: costData.costs
-        .filter(cost => cost.category === 'oneTime')
-        .reduce((sum, cost) => sum + cost.amount, 0)
+      fixed: oneTimeCosts.fixed,
+      variable: oneTimeCosts.variable,
+      total: oneTimeCosts.total
     },
     monthly: {
-      fixed: costData.costs
-        .filter(cost => cost.category === 'monthly' && cost.type === 'fixed')
-        .reduce((sum, cost) => sum + cost.amount, 0),
-      variable: costData.costs
-        .filter(cost => cost.category === 'monthly' && cost.type === 'variable')
-        .reduce((sum, cost) => sum + cost.amount, 0),
-      total: costData.costs
-        .filter(cost => cost.category === 'monthly')
-        .reduce((sum, cost) => sum + cost.amount, 0)
+      fixed: monthlyCosts.fixed,
+      variable: monthlyCosts.variable,
+      total: monthlyCosts.total
     },
     inventory: {
-      fixed: costData.costs
-        .filter(cost => cost.category === 'inventory' && cost.type === 'fixed')
-        .reduce((sum, cost) => sum + cost.amount, 0),
-      variable: costData.costs
-        .filter(cost => cost.category === 'inventory' && cost.type === 'variable')
-        .reduce((sum, cost) => sum + cost.amount, 0),
-      total: costData.costs
-        .filter(cost => cost.category === 'inventory')
-        .reduce((sum, cost) => sum + cost.amount, 0)
+      fixed: inventoryCosts.fixed,
+      variable: inventoryCosts.variable,
+      total: inventoryCosts.total
     }
-  }
+  };
 
   const totalStartupCost = totals.oneTime.total + totals.inventory.total
   const monthlyOperatingCost = totals.monthly.total
   const recommendedCashReserve = monthlyOperatingCost * 6 // 6 months reserve
   const totalInitialCapital = totalStartupCost + recommendedCashReserve
+
+  
+
+
+
+  // Detailed type assertion with runtime validation
+  const validateTotalsStructure = (totalsObj: any) => {
+    const categories = ['oneTime', 'monthly', 'inventory'];
+    const fields = ['fixed', 'variable', 'total'];
+    const errors: string[] = [];
+
+    categories.forEach(category => {
+      if (!totalsObj[category]) {
+        errors.push(`Missing category: ${category}`);
+        return;
+      }
+
+      fields.forEach(field => {
+        if (typeof totalsObj[category][field] !== 'number') {
+          errors.push(`Invalid ${category}.${field}: not a number`);
+        }
+      });
+    });
+
+    if (errors.length > 0) {
+      return false;
+    }
+
+    return true;
+  };
+
+  if (!validateTotalsStructure(totals)) {
+    throw new Error('Invalid totals structure');
+  }
 
   return (
     <div className="space-y-6">
@@ -385,15 +444,21 @@ export function StartupCostCalculator() {
                 </div>
               </Card>
 
-              <StartupCostAnalysis 
-                costs={totals}
-                metrics={{
-                  totalStartupCost,
-                  monthlyOperatingCost,
-                  recommendedCashReserve,
-                  totalInitialCapital
-                }}
-              />
+              {costData.costs.length > 0 ? (
+                <StartupCostAnalysis 
+                  costs={totals}
+                  metrics={{
+                    totalStartupCost,
+                    monthlyOperatingCost,
+                    recommendedCashReserve,
+                    totalInitialCapital
+                  }}
+                />
+              ) : (
+                <div className="text-muted-foreground p-4 text-center">
+                  Add some costs to generate an analysis
+                </div>
+              )}
             </div>
           </TabsContent>
         </Tabs>

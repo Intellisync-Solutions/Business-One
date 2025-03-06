@@ -1,8 +1,27 @@
-import { useState } from 'react'
+import { useState} from 'react'
 import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
-import { CostTotals, FinancialMetrics } from '@/utils/analysisPrompts'
+import { toast } from "@/components/ui/use-toast"
+import { Button } from "@/components/ui/button"
+
+interface CostBreakdown {
+  fixed: number;
+  variable: number;
+  total: number;
+}
+
+interface CostTotals {
+  oneTime: CostBreakdown;
+  monthly: CostBreakdown;
+  inventory: CostBreakdown;
+}
+
+interface FinancialMetrics {
+  totalStartupCost: number;
+  monthlyOperatingCost: number;
+  recommendedCashReserve: number;
+  totalInitialCapital: number;
+}
 
 interface StartupCostAnalysisProps {
   costs: CostTotals;
@@ -12,13 +31,25 @@ interface StartupCostAnalysisProps {
 export function StartupCostAnalysis({ costs, metrics }: StartupCostAnalysisProps) {
   const [analysis, setAnalysis] = useState<string>('')
   const [error, setError] = useState<string>('')
-  const [loading, setLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState<boolean>(false)
 
   const generateAnalysis = async () => {
-    setLoading(true)
+    // Validate input data
+    if (!costs || !metrics) {
+      setError('Missing costs or metrics');
+      toast({
+        title: "Analysis Error",
+        description: "Please complete the startup cost calculator first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Reset previous states
     setError('')
     setAnalysis('')
-    
+    setIsLoading(true)
+
     try {
       const response = await fetch('/.netlify/functions/analyze-startup-costs', {
         method: 'POST',
@@ -26,22 +57,42 @@ export function StartupCostAnalysis({ costs, metrics }: StartupCostAnalysisProps
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ costs, metrics }),
-      })
-
-      const data = await response.json()
+      });
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate analysis')
+        throw new Error('Network response was not ok');
       }
 
-      setAnalysis(data.analysis)
+      const data = await response.json();
+
+      if (!data.analysis) {
+        throw new Error('No analysis returned from the server');
+      }
+
+      setAnalysis(data.analysis);
+      
+      toast({
+        title: "Analysis Generated",
+        description: "Your startup cost analysis is ready.",
+        variant: "default"
+      });
+
     } catch (error) {
-      console.error('Error generating analysis:', error)
-      setError(error instanceof Error ? error.message : 'Failed to generate analysis. Please try again.')
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Failed to generate analysis. Please try again.';
+      
+      setError(errorMessage);
+      
+      toast({
+        title: "Analysis Generation Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
-  }
+  };
 
   return (
     <Card className="p-6">
@@ -50,28 +101,32 @@ export function StartupCostAnalysis({ costs, metrics }: StartupCostAnalysisProps
           <h3 className="text-xl font-semibold">AI Financial Analysis</h3>
           <Button 
             onClick={generateAnalysis} 
-            disabled={loading}
-            className="flex items-center gap-2"
+            disabled={!costs || !metrics || isLoading}
+            className="ml-4"
           >
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {loading ? 'Analyzing...' : 'Generate Analysis'}
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              'Generate Analysis'
+            )}
           </Button>
         </div>
         
         {error && (
           <div className="bg-destructive/10 text-destructive p-4 rounded-md">
-            <p className="text-sm font-medium">{error}</p>
+            {error}
           </div>
         )}
-        
+
         {analysis && (
-          <div className="prose prose-sm max-w-none mt-4">
-            {analysis.split('\n').map((paragraph, index) => (
-              <p key={index} className="mb-2">{paragraph}</p>
-            ))}
+          <div className="bg-muted/50 p-4 rounded-md">
+            <p>{analysis}</p>
           </div>
         )}
       </div>
     </Card>
-  )
+  );
 }

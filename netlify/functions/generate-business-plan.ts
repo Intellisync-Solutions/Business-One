@@ -324,7 +324,7 @@ const generateFullBusinessPlan = async (content: string, context: Record<string,
     throw error;
   }
 };
-
+ 
 const handler: Handler = async (event, context) => {
   // CORS headers
   const headers = {
