@@ -1,6 +1,13 @@
 import { Handler } from '@netlify/functions';
 import OpenAI from 'openai';
 import { Buffer } from 'buffer';
+import dotenv from 'dotenv';
+import path from 'path';
+
+// Explicitly load environment variables
+dotenv.config({ 
+  path: path.resolve(process.cwd(), '.env') 
+});
 
 // Secure environment variable access
 const openaiApiKey = process.env.OPENAI_API_KEY;
@@ -82,14 +89,36 @@ Please provide a strategic analysis that includes:
 Offer actionable, concise insights that a business owner can use to make informed financial decisions.`;
 }
 
+// CORS configuration
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*', // Adjust this in production
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
 export const handler: Handler = async (event, context) => {
+  // Handle CORS preflight requests
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: '',
+    };
+  }
+
+  // Log incoming request details
+  console.log('Incoming request:', {
+    method: event.httpMethod,
+    body: event.body,
+    headers: event.headers
+  });
+
   // Only allow POST requests
   if (event.httpMethod !== 'POST') {
+    console.error('Method not allowed:', event.httpMethod);
     return {
       statusCode: 405,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: corsHeaders,
       body: JSON.stringify({ error: 'Method not allowed' }),
     };
   }
@@ -97,7 +126,7 @@ export const handler: Handler = async (event, context) => {
   try {
     // Parse the request body
     const requestBody = JSON.parse(event.body || '{}');
-    console.log('Received request body:', requestBody);
+    console.log('Parsed request body:', requestBody);
     
     const { breakEvenData, breakEvenResult } = requestBody;
 
@@ -106,9 +135,7 @@ export const handler: Handler = async (event, context) => {
       console.error('Missing data:', { breakEvenData, breakEvenResult });
       return {
         statusCode: 400,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: corsHeaders,
         body: JSON.stringify({ error: 'Missing required break-even data' }),
       };
     }
@@ -158,9 +185,7 @@ export const handler: Handler = async (event, context) => {
       console.error('No analysis generated from OpenAI');
       return {
         statusCode: 500,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: corsHeaders,
         body: JSON.stringify({ error: 'No analysis generated' }),
       };
     }
@@ -182,35 +207,31 @@ export const handler: Handler = async (event, context) => {
       console.error('Analysis not properly formatted. Raw content:', analysis);
       return {
         statusCode: 500,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ error: 'Analysis not properly formatted' }),
+        headers: corsHeaders,
+        body: JSON.stringify({ 
+          error: 'Analysis not properly formatted',
+          rawContent: analysis 
+        }),
       };
     }
 
+    // Return successful response with CORS headers
     return {
       statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: corsHeaders,
       body: JSON.stringify({ 
-        analysis: analysisSection,
-        recommendations: recommendationsSection,
-        length: analysis.length 
+        analysis: analysisSection, 
+        recommendations: recommendationsSection 
       }),
     };
-
   } catch (error) {
-    console.error('Error in analyze-break-even:', error);
-    
+    console.error('Unexpected error:', error);
     return {
       statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: corsHeaders,
       body: JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Failed to generate analysis' 
+        error: 'Unexpected server error', 
+        details: error instanceof Error ? error.message : 'Unknown error' 
       }),
     };
   }

@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 import { useState } from 'react'
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -53,36 +55,82 @@ export function BreakEvenCalculator() {
       setIsAnalyzing(true)
       console.log('Sending request with:', { breakEvenData, breakEvenResult })
       
-      const response = await fetch('/.netlify/functions/analyze-break-even', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ breakEvenData, breakEvenResult }),
-      })
+      // Explicitly determine the function URL
+      const isDev = import.meta.env.DEV === true;
+      const functionUrl = isDev 
+        ? 'http://localhost:9000/.netlify/functions/analyze-break-even'
+        : `${window.location.origin}/.netlify/functions/analyze-break-even`;
       
-      console.log('Response status:', response.status)
+      console.log('Environment:', { 
+        isDev, 
+        origin: window.location.origin, 
+        functionUrl 
+      });
       
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Error response:', errorText)
-        throw new Error(`Failed to generate analysis: ${errorText}`)
+      // Add timeout and error handling
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      try {
+        const fetchOptions: RequestInit = {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ breakEvenData, breakEvenResult }),
+        };
+
+        console.log('Fetch options:', fetchOptions);
+
+        const response = await fetch(functionUrl, fetchOptions);
+        
+        clearTimeout(timeoutId);
+        
+        console.log('Response status:', response.status)
+        
+        if (!response.ok) {
+          const errorText = await response.text()
+          console.error('Error response:', errorText)
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
+        }
+        
+        const data = await response.json()
+        console.log('Received data:', data)
+        
+        if (!data.analysis) {
+          console.error('No analysis in response:', data)
+          throw new Error('No analysis received')
+        }
+        
+        setAiAnalysis({
+          analysis: data.analysis,
+          recommendations: data.recommendations || ''
+        })
+      } catch (fetchError: unknown) {
+        // Type guard to check if error is an Error instance
+        if (fetchError instanceof Error) {
+          console.error('Fetch error details:', {
+            name: fetchError.name,
+            message: fetchError.message,
+            stack: fetchError.stack
+          })
+        } else {
+          console.error('Unknown fetch error:', fetchError)
+        }
+        throw fetchError
       }
-      
-      const data = await response.json()
-      console.log('Received data:', data)
-      
-      if (!data.analysis) {
-        console.error('No analysis in response:', data)
-        throw new Error('No analysis received')
+    } catch (error: unknown) {
+      // Type guard to check if error is an Error instance
+      if (error instanceof Error) {
+        console.error('Error generating analysis:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        })
+      } else {
+        console.error('Unknown error generating analysis:', error)
       }
-      
-      setAiAnalysis({
-        analysis: data.analysis,
-        recommendations: data.recommendations || ''
-      })
-    } catch (error) {
-      console.error('Error generating analysis:', error)
       setAiAnalysis(null)
     } finally {
       setIsAnalyzing(false)
