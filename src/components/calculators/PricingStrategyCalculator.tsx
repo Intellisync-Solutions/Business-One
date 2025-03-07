@@ -48,7 +48,7 @@ interface CostStructure {
 interface MarketData {
   competitorPrice: number;
   marketSize: number;
-  priceElasticity: number;
+  priceElasticity: number | null;
 }
 
 interface PricingScenario {
@@ -121,12 +121,12 @@ export function PricingStrategyCalculator() {
     marketData: {
       competitorPrice: 0,
       marketSize: 0,
-      priceElasticity: 0
+      priceElasticity: null
     },
     scenarios: []
   })
 
-  const [activeTab, setActiveTab] = useState('optimal')
+  const [activeTab, setActiveTab] = useState('ai-analysis')
   const [scenarioParams, setScenarioParams] = useState<ScenarioParams>({
     minPrice: 0,
     maxPrice: 0,
@@ -148,6 +148,8 @@ export function PricingStrategyCalculator() {
     profitMargin: 0,
     meetsTargetProfit: false
   })
+
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
 
   const { toast } = useToast();
 
@@ -199,105 +201,180 @@ export function PricingStrategyCalculator() {
         setBreakEvenPrice(newBreakEvenPrice);
         setOptimalPrice(newOptimalPrice);
 
-        // Update break-even analysis
-        setBreakEvenAnalysis(prev => {
-          // Calculate price range based on target profit and market sensitivity
-          const profitMargin = pricingData.costStructure.targetProfitPercentage / 100;
-          const elasticity = pricingData.marketData.priceElasticity;
-          
-          // Minimum price should cover costs 
-          const minPrice = Math.max(newBreakEvenPrice, 
-            newBreakEvenPrice * (1 + profitMargin));
-          
-          // Maximum price considers market elasticity and competitor price
-          // With elasticity 0-1: 
-          // - At 0 (no sensitivity), we can price up to 2x competitor price
-          // - At 1 (high sensitivity), we can only price up to 1.1x competitor price
-          const maxPriceByProfit = Number((newBreakEvenPrice * (1 + profitMargin * 1.5)).toFixed(2));
-          const elasticityFactor = 1 + (0.9 * (1 - elasticity)); // Maps 0->2, 1->1.1
-          const maxPriceByMarket = Number((pricingData.marketData.competitorPrice * elasticityFactor).toFixed(2));
-          const maxPrice = Number(Math.min(maxPriceByProfit, maxPriceByMarket).toFixed(2));
+        // Generate pricing scenarios
+        const generatePricingScenarios = () => {
+          const { 
+            fixedCosts, 
+            variableCostPerUnit, 
+            targetProfitPercentage 
+          } = pricingData.costStructure;
+          const { marketSize, priceElasticity } = pricingData.marketData;
 
-          return {
-            ...prev,
+          // Calculate scenario parameters
+          const minPrice = newBreakEvenPrice * 0.8;
+          const maxPrice = newOptimalPrice * 1.5;
+          const numScenarios = 10;
+
+          const scenarios: PricingScenario[] = [];
+
+          for (let i = 0; i < numScenarios; i++) {
+            // Interpolate price between min and max
+            const price = minPrice + (maxPrice - minPrice) * (i / (numScenarios - 1));
+            
+            // Calculate volume based on price elasticity
+            // Simple linear demand curve: volume = marketSize * (1 - priceElasticity * (price - basePrice) / basePrice)
+            const basePrice = pricingData.marketData.competitorPrice || newOptimalPrice;
+            const priceElasticity = pricingData.marketData.priceElasticity ?? 0; // Default to 0 if null
+            const volume = Math.max(0, marketSize * (1 - priceElasticity * (price - basePrice) / basePrice));
+
+            // Calculate financial metrics
+            const revenue = price * volume;
+            const variableCosts = variableCostPerUnit * volume;
+            const totalCosts = fixedCosts + variableCosts;
+            const profit = revenue - totalCosts;
+            const profitMargin = (profit / revenue) * 100;
+            const targetProfit = fixedCosts * (targetProfitPercentage / 100);
+            const meetsTargetProfit = profit >= targetProfit;
+
+            scenarios.push({
+              price,
+              volume,
+              revenue,
+              variableCosts,
+              totalCosts,
+              profit,
+              targetProfit,
+              profitMargin,
+              meetsTargetProfit
+            });
+          }
+
+          // Sort scenarios by profitability
+          scenarios.sort((a, b) => b.profit - a.profit);
+
+          // Set scenarios and current best scenario
+          setScenarios(scenarios);
+          setCurrentScenario(scenarios[0] || defaultScenario);
+
+          // Perform break-even analysis
+          const breakEvenAnalysis: BreakEvenAnalysis = {
             point: newBreakEvenPrice,
             optimalPrice: newOptimalPrice,
             optimalPriceRange: {
               min: minPrice,
               max: maxPrice
             },
-            marketSensitivity: elasticity,
-            min: minPrice,
-            max: maxPrice
+            marketSensitivity: priceElasticity ?? 0, // Default to 0 if null
+          min: scenarios.length > 0 ? scenarios[scenarios.length - 1].price : 0,
+          max: scenarios.length > 0 ? scenarios[0].price : 0
           };
-        });
+          setBreakEvenAnalysis(breakEvenAnalysis);
 
-        // Update scenario parameters
-        if (
-          pricingData.marketData.competitorPrice > 0 &&
-          pricingData.marketData.priceElasticity > 0
-        ) {
-          setScenarioParams({
-            minPrice: Number((Math.max(newBreakEvenPrice * 0.8, 1)).toFixed(2)),
-            maxPrice: Number((newOptimalPrice * 1.2).toFixed(2)),
-            numScenarios: 10
-          });
-        }
+          // Prepare chart data for visualization
+          const chartData = scenarios.map(scenario => ({
+            price: scenario.price,
+            profit: scenario.profit,
+            revenue: scenario.revenue,
+            volume: scenario.volume
+          }));
+          setAnalysisChartData(chartData);
+        };
+
+        // Generate scenarios
+        generatePricingScenarios();
       }
     };
 
+    // Run calculation
     calculatePrices();
-  }, [
-    pricingData.costStructure.fixedCosts,
-    pricingData.costStructure.variableCostPerUnit,
-    pricingData.costStructure.targetProfitPercentage,
-    pricingData.marketData.marketSize,
-    pricingData.marketData.competitorPrice,
-    pricingData.marketData.priceElasticity
-  ]);
+  }, [pricingData]);
 
-  // Update scenarios when scenario parameters change
-  useEffect(() => {
-    if (
-      scenarioParams.minPrice > 0 &&
-      scenarioParams.maxPrice > 0 &&
-      scenarioParams.numScenarios > 0
-    ) {
-      try {
-        const newScenarios = calculatePricingScenarios(scenarioParams);
-        setScenarios(newScenarios);
-        
-        const optimalScenario = findOptimalScenario(newScenarios);
-        if (optimalScenario) {
-          setCurrentScenario(optimalScenario);
-        }
-        
-        setAnalysisChartData(
-          newScenarios.map(scenario => ({
-            price: scenario.price,
-            revenue: scenario.revenue,
-            profit: scenario.profit,
-            volume: scenario.volume
-          }))
-        );
-      } catch (error) {
-        console.error('Error calculating scenarios:', error);
+  // Function to generate AI analysis
+  const generateAiPricingAnalysis = async (priceElasticity: number) => {
+    try {
+      // Detailed logging of input values
+      console.log('AI Analysis Generation - Input Data:', {
+        fixedCosts: pricingData.costStructure.fixedCosts,
+        variableCostPerUnit: pricingData.costStructure.variableCostPerUnit,
+        targetProfitPercentage: pricingData.costStructure.targetProfitPercentage,
+        marketSize: pricingData.marketData.marketSize,
+        priceElasticity: priceElasticity
+      });
+
+      // Validate inputs before generating analysis
+      const validationErrors: string[] = [];
+      
+      if (pricingData.costStructure.fixedCosts <= 0) {
+        validationErrors.push("Fixed Costs must be greater than 0");
+      }
+      if (pricingData.costStructure.variableCostPerUnit <= 0) {
+        validationErrors.push("Variable Cost Per Unit must be greater than 0");
+      }
+      if (pricingData.costStructure.targetProfitPercentage <= 0) {
+        validationErrors.push("Target Profit Percentage must be greater than 0");
+      }
+      if (pricingData.marketData.marketSize <= 0) {
+        validationErrors.push("Market Size must be greater than 0");
+      }
+      if (priceElasticity <= 0) {
+        validationErrors.push("Price Elasticity must be greater than 0");
+      }
+
+      // If there are validation errors, show a toast and return
+      if (validationErrors.length > 0) {
         toast({
-          title: "Calculation Error",
-          description: "Unable to generate pricing scenarios.",
+          title: "Insufficient Data",
+          description: validationErrors.join(". "),
           variant: "destructive"
         });
+        return;
       }
-    }
-  }, [scenarioParams]);
 
-  // Update break-even analysis when scenarios change
-  useEffect(() => {
-    if (scenarios.length > 0) {
-      const analysis = calculateBreakEvenAnalysis(scenarios);
-      setBreakEvenAnalysis(analysis);
+      const functionUrl = 'http://localhost:9000/.netlify/functions/analyze-pricing-strategy';
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        body: JSON.stringify({ 
+          breakEvenAnalysis, 
+          scenarios,
+          costStructure: pricingData.costStructure,
+          marketData: {
+            ...pricingData.marketData,
+            priceElasticity
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('AI Analysis Generation Error:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      }
+
+      const data = await response.json();
+      
+      console.log('AI Analysis Response:', data);
+
+      // Store the AI analysis in state
+      setAiAnalysis(data.analysis || "No detailed analysis available.");
+
+      // Optional: Still keep a toast for immediate feedback
+      toast({
+        title: "Pricing Strategy Analysis",
+        description: "Analysis generated successfully.",
+      });
+
+      // Switch to AI Analysis tab
+      setActiveTab('ai-analysis');
+    } catch (error) {
+      console.error('Error generating pricing analysis:', error);
+      toast({
+        title: "Analysis Error",
+        description: "Could not generate pricing strategy analysis.",
+        variant: "destructive"
+      });
+      setAiAnalysis(null);
     }
-  }, [scenarios]);
+  };
 
   // Update the cost structure
   const updateCostStructure = (field: keyof CostStructure, value: number) => {
@@ -311,7 +388,7 @@ export function PricingStrategyCalculator() {
   }
 
   // Update market data
-  const updateMarketData = (field: keyof MarketData, value: number) => {
+  const updateMarketData = (field: keyof MarketData, value: number | null) => {
     setPricingData(prev => ({
       ...prev,
       marketData: {
@@ -327,13 +404,21 @@ export function PricingStrategyCalculator() {
     // Validate inputs to prevent invalid calculations
     const validationErrors: string[] = [];
     
-    if (pricingData.costStructure.variableCostPerUnit <= 0) {
+    // Ensure all inputs are parsed as numbers and stripped of any leading zeros
+    const fixedCosts = Number(pricingData.costStructure.fixedCosts);
+    const variableCostPerUnit = Number(pricingData.costStructure.variableCostPerUnit);
+    const marketSize = Number(pricingData.marketData.marketSize);
+    const competitorPrice = Number(pricingData.marketData.competitorPrice);
+    const targetProfitPercentage = Number(pricingData.costStructure.targetProfitPercentage);
+    const priceElasticity = pricingData.marketData.priceElasticity;
+    
+    if (variableCostPerUnit <= 0) {
       validationErrors.push("Variable Cost Per Unit must be greater than 0");
     }
-    if (pricingData.marketData.marketSize <= 0) {
+    if (marketSize <= 0) {
       validationErrors.push("Market Size must be greater than 0");
     }
-    if (pricingData.marketData.competitorPrice <= 0) {
+    if (competitorPrice <= 0) {
       validationErrors.push("Competitor Price must be greater than 0");
     }
     if (scenarioParams.minPrice <= 0) {
@@ -368,18 +453,18 @@ export function PricingStrategyCalculator() {
       // Calculate demand using our new price elasticity function (0-1 scale)
       const volume = calculateExpectedVolume(
         price,
-        pricingData.marketData.marketSize,
-        pricingData.marketData.competitorPrice,
-        pricingData.marketData.priceElasticity
+        marketSize,
+        competitorPrice,
+        priceElasticity
       );
 
       // Calculate costs and revenue
-      const revenue = price * volume
-      const variableCosts = volume * pricingData.costStructure.variableCostPerUnit
-      const totalCosts = pricingData.costStructure.fixedCosts + variableCosts
-      const profit = revenue - totalCosts
-      const targetProfit = revenue * (pricingData.costStructure.targetProfitPercentage / 100)
-      const profitMargin = (profit / revenue) * 100
+      const revenue = Number((price * volume).toFixed(2))
+      const variableCosts = Number((volume * variableCostPerUnit).toFixed(2))
+      const totalCosts = Number((fixedCosts + variableCosts).toFixed(2))
+      const profit = Number((revenue - totalCosts).toFixed(2))
+      const targetProfit = Number((revenue * (targetProfitPercentage / 100)).toFixed(2))
+      const profitMargin = Number(((profit / revenue) * 100).toFixed(2))
 
       const scenario: PricingScenario = {
         price,
@@ -412,32 +497,7 @@ export function PricingStrategyCalculator() {
     }, scenarios[0])
   }
 
-  const calculateBreakEvenAnalysis = (scenarios: PricingScenario[]): BreakEvenAnalysis => {
-    const breakEvenPrice = calculateBreakEvenPrice(
-      pricingData.costStructure.fixedCosts,
-      pricingData.costStructure.variableCostPerUnit,
-      pricingData.marketData.marketSize
-    )
-
-    const optimalPrice = calculateOptimalPrice(
-      breakEvenPrice,
-      pricingData.costStructure.targetProfitPercentage
-    )
-
-    return {
-      point: breakEvenPrice,
-      optimalPrice,
-      optimalPriceRange: scenarios.length > 0 ? {
-        min: scenarios[0].price,
-        max: scenarios[scenarios.length - 1].price
-      } : { min: 0, max: 0 },
-      marketSensitivity: pricingData.marketData.priceElasticity,
-      min: scenarios.length > 0 ? scenarios[0].price : 0,
-      max: scenarios.length > 0 ? scenarios[scenarios.length - 1].price : 0
-    }
-  }
-
-  const calculateExpectedVolume = (price: number, marketSize: number, competitorPrice: number, elasticity: number) => {
+  const calculateExpectedVolume = (price: number, marketSize: number, competitorPrice: number, elasticity: number | null) => {
     if (price <= 0 || marketSize <= 0 || competitorPrice <= 0) return 0;
     
     // Calculate price difference percentage
@@ -446,10 +506,11 @@ export function PricingStrategyCalculator() {
     // With elasticity 0-1:
     // - At 0 (no sensitivity): volume reduction is minimal (only 10% max)
     // - At 1 (high sensitivity): volume reduction is substantial (up to 90%)
-    const maxVolumeReduction = 0.1 + (0.8 * elasticity); // Maps 0->0.1, 1->0.9
+    const safeElasticity = elasticity ?? 0; // Default to 0 if null
+    const maxVolumeReduction = 0.1 + (0.8 * safeElasticity); // Maps 0->0.1, 1->0.9
     
     // Calculate volume reduction based on price difference and elasticity
-    const volumeReduction = Math.min(maxVolumeReduction, Math.max(0, priceDiff * elasticity));
+    const volumeReduction = Math.min(maxVolumeReduction, Math.max(0, priceDiff * safeElasticity));
     
     return Math.floor(marketSize * (1 - volumeReduction));
   };
@@ -465,7 +526,7 @@ export function PricingStrategyCalculator() {
       marketData: {
         competitorPrice: 0,
         marketSize: 0,
-        priceElasticity: 0
+        priceElasticity: null
       },
       scenarios: []
     });
@@ -490,7 +551,8 @@ export function PricingStrategyCalculator() {
       profitMargin: 0,
       meetsTargetProfit: false
     });
-    setActiveTab('optimal');
+    setActiveTab('ai-analysis');
+    setAiAnalysis(null);
     
     // Show a toast notification
     toast({
@@ -517,10 +579,11 @@ export function PricingStrategyCalculator() {
         </div>
         
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 mb-4">
+          <TabsList className="grid w-full grid-cols-5 mb-4">
             <TabsTrigger value="optimal">Optimal</TabsTrigger>
             <TabsTrigger value="scenarios">Scenarios</TabsTrigger>
             <TabsTrigger value="analysis">Analysis</TabsTrigger>
+            <TabsTrigger value="ai-analysis">AI Analysis</TabsTrigger>
             <TabsTrigger value="subscription">Subscription</TabsTrigger>
           </TabsList>
           
@@ -589,7 +652,7 @@ export function PricingStrategyCalculator() {
                           <Info className="h-4 w-4 text-muted-foreground" />
                         </TooltipTrigger>
                         <TooltipContent className="max-w-sm">
-                          <p>The desired profit margin as a percentage of revenue. This helps determine optimal pricing to achieve your profit goals.</p>
+                          <p>Desired profit margin as a percentage of revenue. For example, 20% means you want to earn $20 for every $100 in sales.</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -598,11 +661,18 @@ export function PricingStrategyCalculator() {
                     type="number"
                     min="0"
                     max="100"
-                    step="1"
+                    step="0.1"
                     value={pricingData.costStructure.targetProfitPercentage || ''}
                     onChange={(e) => {
-                      const value = e.target.value === '' ? 0 : Math.min(100, Math.max(0, Number(e.target.value)));
-                      updateCostStructure('targetProfitPercentage', value);
+                      const rawValue = e.target.value.replace(/^0+/, ''); // Remove leading zeros
+                      const value = rawValue === '' ? 0 : Math.max(0, Math.min(100, Number(rawValue)));
+                      setPricingData(prev => ({
+                        ...prev,
+                        costStructure: {
+                          ...prev.costStructure,
+                          targetProfitPercentage: value
+                        }
+                      }));
                     }}
                     placeholder="Enter target profit %"
                   />
@@ -626,7 +696,7 @@ export function PricingStrategyCalculator() {
                       pricingData.costStructure.targetProfitPercentage > 0 &&
                       pricingData.marketData.competitorPrice > 0 &&
                       pricingData.marketData.marketSize > 0 &&
-                      pricingData.marketData.priceElasticity > 0;
+                      pricingData.marketData.priceElasticity !== null;
 
                     if (!isValid) {
                       toast({
@@ -677,7 +747,7 @@ export function PricingStrategyCalculator() {
                       pricingData.costStructure.targetProfitPercentage > 0 &&
                       pricingData.marketData.competitorPrice > 0 &&
                       pricingData.marketData.marketSize > 0 &&
-                      pricingData.marketData.priceElasticity > 0)
+                      pricingData.marketData.priceElasticity !== null)
                   }
                 >
                   Generate Results
@@ -690,7 +760,19 @@ export function PricingStrategyCalculator() {
               <h3 className="text-xl font-semibold mb-4">Market Analysis</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <Label>Competitor Price</Label>
+                  <Label className="flex items-center gap-2">
+                    Competitor Price
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="h-4 w-4 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-sm">
+                          <p>The current market price for similar products or services.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </Label>
                   <Input
                     type="number"
                     min="0"
@@ -712,7 +794,7 @@ export function PricingStrategyCalculator() {
                           <Info className="h-4 w-4 text-muted-foreground" />
                         </TooltipTrigger>
                         <TooltipContent className="max-w-sm">
-                          <p>Total potential number of customers or total potential sales volume in your target market.</p>
+                          <p>Total number of potential units that can be sold in the market.</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -730,32 +812,32 @@ export function PricingStrategyCalculator() {
                   />
                 </div>
                 <div>
-                  <Label className="flex items-center gap-2">
-                    Price Elasticity
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Info className="h-4 w-4 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent className="max-w-sm">
-                          <p>Price elasticity ranges from 0 to 1. A value of 0 means customers are not sensitive to price changes (inelastic), while 1 means they are highly sensitive to price changes (elastic).</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </Label>
+                  <Label>Price Elasticity</Label>
                   <Input 
                     type="number"
-                    min="0"
-                    max="1"
-                    step="0.1"
                     value={pricingData.marketData.priceElasticity || ''}
                     onChange={(e) => {
-                      const value = e.target.value === '' ? 0 : Math.min(1, Math.max(0, Number(e.target.value)));
+                      const rawValue = e.target.value;
+                      const value = rawValue === '' ? null : Number(rawValue);
+                      
                       updateMarketData('priceElasticity', value);
                     }}
-                    placeholder="Enter price elasticity (0-1)"
+                    placeholder="Enter price elasticity (optional)"
                   />
                 </div>
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <Button 
+                  onClick={() => {
+                    // Ensure null is treated as 0 for AI generation
+                    const priceElasticity = pricingData.marketData.priceElasticity ?? 0;
+                    generateAiPricingAnalysis(priceElasticity);
+                  }}
+                  className="w-full md:w-auto"
+                >
+                  Generate AI Analysis
+                </Button>
               </div>
             </Card>
 
@@ -791,7 +873,7 @@ export function PricingStrategyCalculator() {
                       {currentScenario.volume.toLocaleString()} units
                     </div>
                     <p className="text-sm mt-2 text-muted-foreground">
-                      Projected sales volume based on price elasticity ({pricingData.marketData.priceElasticity.toFixed(2)}) and total market size ({pricingData.marketData.marketSize.toLocaleString()} units). 
+                      Projected sales volume based on price elasticity ({pricingData.marketData.priceElasticity != null ? pricingData.marketData.priceElasticity.toFixed(2) : 'N/A'}) and total market size ({pricingData.marketData.marketSize.toLocaleString()} units). 
                       This estimate factors in how demand changes relative to your competitor's price (${pricingData.marketData.competitorPrice.toFixed(2)}).
                     </p>
                   </div>
@@ -851,7 +933,7 @@ export function PricingStrategyCalculator() {
                             </span>
                           </li>
                           <li>
-                            <strong>Price Elasticity Factor:</strong> {pricingData.marketData.priceElasticity.toFixed(2)}
+                            <strong>Price Elasticity Factor:</strong> {pricingData.marketData.priceElasticity != null ? pricingData.marketData.priceElasticity.toFixed(2) : 'N/A'}
                             <span className="text-muted-foreground ml-2">
                               (Market sensitivity to price changes)
                             </span>
@@ -928,10 +1010,10 @@ export function PricingStrategyCalculator() {
                     <Input 
                       type="number" 
                       placeholder="Enter minimum price" 
-                      value={scenarioParams.minPrice}
+                      value={scenarioParams.minPrice || ''}
                       onChange={(e) => {
-                        const inputValue = e.target.value.replace(/^0+/, ''); // Remove leading zeros
-                        const minPrice = inputValue === '' ? 0 : Number(inputValue);
+                        const rawValue = e.target.value.replace(/^0+/, ''); // Remove leading zeros
+                        const minPrice = rawValue === '' ? 0 : Number(rawValue);
                         setScenarioParams(prev => ({
                           ...prev, 
                           minPrice,
@@ -948,10 +1030,10 @@ export function PricingStrategyCalculator() {
                     <Input 
                       type="number" 
                       placeholder="Enter maximum price" 
-                      value={Number(scenarioParams.maxPrice).toFixed(2)}
+                      value={scenarioParams.maxPrice || ''}
                       onChange={(e) => {
-                        const inputValue = e.target.value.replace(/^0+/, ''); // Remove leading zeros
-                        const maxPrice = inputValue === '' ? 0 : Number(inputValue);
+                        const rawValue = e.target.value.replace(/^0+/, ''); // Remove leading zeros
+                        const maxPrice = rawValue === '' ? 0 : Number(rawValue);
                         setScenarioParams(prev => ({
                           ...prev, 
                           maxPrice,
@@ -968,16 +1050,29 @@ export function PricingStrategyCalculator() {
                     <Input 
                       type="number" 
                       placeholder="Enter number of scenarios" 
-                      value={scenarioParams.numScenarios}
+                      value={scenarioParams.numScenarios || ''}
                       onChange={(e) => {
-                        const inputValue = e.target.value.replace(/^0+/, ''); // Remove leading zeros
+                        const rawValue = e.target.value.replace(/^0+/, ''); // Remove leading zeros
+                        const numScenarios = rawValue === '' ? 2 : Number(rawValue);
+                        
+                        // Check for out-of-range values and show alert
+                        if (numScenarios < 2 || numScenarios > 20) {
+                          toast({
+                            variant: "destructive",
+                            title: "Invalid Number of Scenarios",
+                            description: `Number of scenarios must be between 2 and 20. You entered ${numScenarios}.`
+                          });
+                        }
+                        
+                        // Always update the state, allowing dynamic modification
                         setScenarioParams(prev => ({
                           ...prev, 
-                          numScenarios: inputValue === '' ? 2 : Math.max(2, Math.min(20, Number(inputValue)))
-                        }))
+                          numScenarios
+                        }));
                       }}
                       min={2}
                       max={20}
+                      step={1}
                     />
                   </div>
                 </div>
@@ -1234,6 +1329,17 @@ export function PricingStrategyCalculator() {
           
           <TabsContent value="subscription">
             <SubscriptionRevenueCalculator />
+          </TabsContent>
+
+          <TabsContent value="ai-analysis">
+            <Card className="p-6">
+              <h3 className="text-xl font-semibold mb-4">AI-Generated Market Analysis</h3>
+              {aiAnalysis && (
+                <div className="bg-background rounded-lg p-4">
+                  <p className="text-foreground">{aiAnalysis}</p>
+                </div>
+              )}
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
