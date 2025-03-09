@@ -196,3 +196,165 @@ Please provide:
 
 ${formatInstructions}`;
 };
+
+/**
+ * Generate a SMART objective in markdown format
+ * @param title Objective title
+ * @param specific Specific goal description
+ * @param measurable How progress will be measured
+ * @param achievable Steps to make the goal achievable
+ * @param relevant How the goal aligns with broader mission
+ * @param timeBound Timeline for achieving the objective
+ * @returns Formatted markdown for a SMART objective
+ */
+export const generateSmartObjective = (
+  title: string,
+  specific: string,
+  measurable: string,
+  achievable: string,
+  relevant: string,
+  timeBound: string
+): string => `**${title}**
+- **Specific:** ${specific}
+- **Measurable:** ${measurable}
+- **Achievable:** ${achievable}
+- **Relevant:** ${relevant}
+- **Time-bound:** ${timeBound}
+`;
+
+/**
+ * Generate a comprehensive Business Plan objectives section
+ * @param objectives Array of objective configurations
+ * @returns Formatted markdown for Business Plan objectives section
+ */
+export const generateBusinessPlanObjectives = (
+  objectives: Array<{
+    title: string;
+    specific: string;
+    measurable: string;
+    achievable: string;
+    relevant: string;
+    timeBound: string;
+  }>
+): string => {
+  const objectivesMarkdown = objectives
+    .map(obj => generateSmartObjective(
+      obj.title, 
+      obj.specific, 
+      obj.measurable, 
+      obj.achievable, 
+      obj.relevant, 
+      obj.timeBound
+    ))
+    .join('\n\n');
+
+  return `### Business Objectives
+
+${objectivesMarkdown}
+
+These structured objectives provide a clear roadmap for achieving our mission, ensuring that every goal is actionable, measurable, and aligned with our commitment to excellence and innovation.`;
+};
+
+/**
+ * Generate a detailed explanation of the SMART goal framework
+ * @returns Markdown-formatted explanation of SMART goal methodology
+ */
+export const generateSMARTGoalContext = (): string => `### Understanding SMART Goals
+
+The SMART goal framework is a critical tool for strategic planning and objective setting. Each component of a SMART goal ensures that the objective is well-defined, actionable, and achievable:
+
+- **Specific:** Clearly define what needs to be accomplished. Avoid vague statements and focus on precise, well-defined outcomes.
+  - Example: Instead of "Improve sales", use "Increase quarterly sales by 15% in the enterprise software segment"
+
+- **Measurable:** Establish concrete criteria for measuring progress. Quantify your objectives to track advancement and know when the goal is achieved.
+  - Example: Use specific metrics like percentages, dollar amounts, or numerical targets
+
+- **Achievable:** Ensure the goal is realistic and attainable. Consider current resources, constraints, and capabilities while setting challenging yet possible objectives.
+  - Example: Set goals that stretch your capabilities but remain within the realm of possibility given your current resources and expertise
+
+- **Relevant:** Align the objective with broader business strategies, mission, and long-term vision. The goal should matter to the organization and contribute to its overall success.
+  - Example: Directly link the objective to key business outcomes or strategic priorities
+
+- **Time-bound:** Set a clear timeframe for achieving the objective. A defined timeline creates urgency and helps in planning and resource allocation.
+  - Example: Specify exact dates or periods, such as "within the next 12 months" or "by Q4 of the current fiscal year"
+
+**Benefits of SMART Goals:**
+- Provides clarity and direction
+- Increases motivation and accountability
+- Enables precise tracking and measurement
+- Aligns individual and team efforts with organizational objectives
+- Facilitates more effective strategic planning and execution
+
+When developing SMART goals, continuously review and refine them to ensure they remain relevant and impactful.`;
+
+/**
+ * Generate a comprehensive Business Plan prompt for AI response generation
+ * @param companyName Name of the company
+ * @param objectives Array of objective configurations
+ * @param additionalContext Optional additional context or specific requirements
+ * @returns Fully formatted prompt for AI-generated Business Plan section
+ */
+export const generateBusinessPlanPrompt = (
+  companyName: string,
+  objectives: Array<{
+    title: string;
+    specific: string;
+    measurable: string;
+    achievable: string;
+    relevant: string;
+    timeBound: string;
+  }>,
+  additionalContext?: string
+): string => {
+  const objectivesSection = generateBusinessPlanObjectives(objectives);
+  const smartGoalContext = generateSMARTGoalContext();
+  
+  return `${baseFinancialContext}
+
+# Business Plan for ${companyName}
+
+## Executive Summary
+Provide a concise overview of ${companyName}'s strategic direction, key strengths, and primary business objectives.
+
+${objectivesSection}
+
+## SMART Goal Methodology
+${smartGoalContext}
+
+## Strategic Analysis
+${additionalContext || 'Conduct a comprehensive analysis of the company\'s current position, market opportunities, and potential challenges.'}
+
+### Goal Setting Context
+For each objective outlined above, we have applied the SMART goal framework to ensure:
+- Precise and clear goal definition
+- Measurable outcomes
+- Realistic and achievable targets
+- Alignment with broader business strategy
+- Clear timelines for implementation
+
+### Market Positioning
+- Describe the unique value proposition
+- Analyze competitive landscape
+- Identify key market opportunities
+
+### Risk Assessment
+- Outline potential risks and mitigation strategies
+- Provide contingency planning recommendations
+
+## Financial Projections
+- Develop detailed financial forecasts
+- Include revenue models, cost structures, and growth projections
+
+## Implementation Roadmap
+- Break down objectives into actionable phases
+- Define key milestones and success metrics
+- Establish timeline for strategic initiatives
+
+${formatInstructions}
+
+Ensure all recommendations are:
+- Aligned with ${companyName}'s core mission
+- Supported by data-driven insights
+- Practical and implementable
+- Focused on long-term sustainable growth`;
+};
