@@ -69,7 +69,7 @@ export function BusinessPlanSection({
     try {
       const response = await axios.post(
         process.env.NODE_ENV === 'development' 
-          ? 'http://localhost:9999/.netlify/functions/generate-business-plan'
+          ? 'http://localhost:9000/.netlify/functions/generate-business-plan'
           : '/.netlify/functions/generate-business-plan', 
         {
           section: field,

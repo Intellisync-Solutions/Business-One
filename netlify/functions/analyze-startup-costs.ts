@@ -144,36 +144,56 @@ export const handler: Handler = async (event, context) => {
       };
     }
 
-    // Generate the analysis
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `You are an experienced business financial advisor specializing in startup finances and business planning. 
-          Your role is to provide clear, actionable insights based on startup cost data. 
-          Focus on practical advice, industry benchmarks, and risk assessment.
-          Be concise but thorough, and always maintain a professional, advisory tone.`
-        },
-        {
-          role: "user",
-          content: generateAnalysisPrompt({ costs, metrics })
-        }
-      ],
-      temperature: 0.7,
-      max_tokens: 1000
+    // Log the request data for debugging
+    console.log('Processing analysis request with data:', {
+      costsSummary: {
+        oneTimeTotal: costs?.oneTime?.total || 0,
+        monthlyTotal: costs?.monthly?.total || 0,
+        inventoryTotal: costs?.inventory?.total || 0
+      },
+      metricsSummary: {
+        totalStartupCost: metrics?.totalStartupCost || 0,
+        monthlyOperatingCost: metrics?.monthlyOperatingCost || 0
+      }
     });
-
-    const analysis = completion.choices[0].message.content;
-
-    if (!analysis) {
-      console.error('No analysis generated', { costs, metrics });
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ error: 'No analysis generated' }),
-      };
+    
+    // Generate the analysis
+    let analysis: string;
+    try {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are an experienced business financial advisor specializing in startup finances and business planning. 
+            Your role is to provide clear, actionable insights based on startup cost data. 
+            Format your response using markdown with clear section headers and bullet points.
+            Focus on practical advice, industry benchmarks, and risk assessment.
+            Be concise but thorough, and always maintain a professional, advisory tone.`
+          },
+          {
+            role: "user",
+            content: generateAnalysisPrompt({ costs, metrics })
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 1000
+      });
+      
+      console.log('OpenAI API call successful');
+      analysis = completion.choices[0].message.content || '';
+    } catch (error: unknown) {
+      console.error('OpenAI API error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`OpenAI API error: ${errorMessage}`);
     }
+    
+    if (!analysis) {
+      throw new Error('No analysis generated from the OpenAI API');
+    }
+
+    // Analysis existence already checked in the try-catch block
+    console.log('Analysis generated successfully:', analysis.substring(0, 100) + '...');
 
     return {
       statusCode: 200,

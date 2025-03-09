@@ -836,7 +836,7 @@ export function PricingStrategyCalculator() {
                   }}
                   className="w-full md:w-auto"
                 >
-                  Generate AI Analysis
+                  Intellisync Analysis
                 </Button>
               </div>
             </Card>

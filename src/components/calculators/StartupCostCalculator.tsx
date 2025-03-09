@@ -444,21 +444,21 @@ export function StartupCostCalculator() {
                 </div>
               </Card>
 
-              {costData.costs.length > 0 ? (
-                <StartupCostAnalysis 
-                  costs={totals}
-                  metrics={{
-                    totalStartupCost,
-                    monthlyOperatingCost,
-                    recommendedCashReserve,
-                    totalInitialCapital
-                  }}
-                />
-              ) : (
-                <div className="text-muted-foreground p-4 text-center">
-                  Add some costs to generate an analysis
-                </div>
-              )}
+              {/* Debug info */}
+              <div className="text-xs text-muted-foreground mb-2">
+                Costs count: {costData.costs.length}
+              </div>
+              
+              {/* Always render StartupCostAnalysis */}
+              <StartupCostAnalysis 
+                costs={totals}
+                metrics={{
+                  totalStartupCost,
+                  monthlyOperatingCost,
+                  recommendedCashReserve,
+                  totalInitialCapital
+                }}
+              />
             </div>
           </TabsContent>
         </Tabs>
