@@ -10,6 +10,10 @@ export function HeroSection() {
     navigate('/business-plan', { replace: true }) 
   }
 
+  const handleGoToDashboard = () => {
+    navigate('/dashboard', { replace: true })
+  }
+
   return (
     <div className="relative min-h-[80vh] bg-gradient-to-br from-primary/10 via-primary/20 to-secondary/30 overflow-hidden">
       {/* Animated background elements */}
@@ -42,8 +46,9 @@ export function HeroSection() {
                 Get Started
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Button>
-              <Button size="lg" variant="outline" onClick={handleGetStarted}>
-                Watch Demo
+              <Button size="lg" variant="outline" onClick={handleGoToDashboard}>
+                Go to Dashboard
+                <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Button>
             </div>
           </motion.div>

@@ -2,7 +2,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { Button } from "@/components/ui/button"
 import { DataPersistence } from '@/components/common/DataPersistence'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
-import { Card } from '@/components/ui/card'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { RatioCategoryLayout } from '@/components/financial/RatioCategoryLayout'
 import { useState } from 'react'
 import { 
@@ -541,6 +541,9 @@ const RATIO_CATEGORIES: RatioCategoryMap = {
   }
 }
 
+import { FinancialAnalysisDisplay } from '@/components/financial/FinancialAnalysisDisplay';
+import { Separator } from '@/components/ui/separator';
+
 const FinancialCalculators = () => {
   const { toast } = useToast()
   const [financialData, setFinancialData] = useLocalStorage<FinancialData>('financial-ratios', {
@@ -565,6 +568,48 @@ const FinancialCalculators = () => {
     })
   }
 
+  // Function to analyze financial ratios using the Netlify function
+  const analyzeFinancialRatios = async () => {
+    try {
+      // Prepare the data for analysis
+      const ratiosByCategory = financialData.ratios;
+      const calculatedRatios = Object.entries(ratiosByCategory).reduce((acc, [category, ratios]) => {
+        Object.entries(ratios).forEach(([ratioName, value]) => {
+          acc[`${category}_${ratioName}`] = value;
+        });
+        return acc;
+      }, {} as Record<string, number>);
+      
+      // Call the Netlify function
+      const response = await fetch('/.netlify/functions/analyze-financial-ratios', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ratiosByCategory, calculatedRatios }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error analyzing financial ratios:', error);
+      throw error;
+    }
+  };
+
+  // Check if we have enough data to perform analysis
+  const hasEnoughDataForAnalysis = () => {
+    const totalRatios = Object.values(financialData.ratios).reduce((count, categoryRatios) => {
+      return count + Object.keys(categoryRatios).length;
+    }, 0);
+    
+    return totalRatios >= 3; // Require at least 3 ratios for meaningful analysis
+  };
+
   return (
     <div className="container mx-auto py-8 space-y-8">
       <div className="flex justify-between items-center">
@@ -578,23 +623,38 @@ const FinancialCalculators = () => {
       
       <div className="grid md:grid-cols-[250px,1fr] gap-6">
         {/* Navigation Sidebar */}
-        <Card className="p-4 h-fit">
-          <div className="space-y-4">
-            <h3 className="font-semibold">Categories</h3>
-            <div className="space-y-2">
-              {Object.entries(RATIO_CATEGORIES).map(([key, category]) => (
-                <Button
-                  key={key}
-                  variant={activeCategory === key ? "default" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => setActiveCategory(key)}
-                >
-                  {category.title}
-                </Button>
-              ))}
+        <div className="space-y-6">
+          <Card className="p-4 h-fit">
+            <div className="space-y-4">
+              <h3 className="font-semibold">Categories</h3>
+              <div className="space-y-2">
+                {Object.entries(RATIO_CATEGORIES).map(([key, category]) => (
+                  <Button
+                    key={key}
+                    variant={activeCategory === key ? "default" : "ghost"}
+                    className="w-full justify-start"
+                    onClick={() => setActiveCategory(key)}
+                  >
+                    {category.title}
+                  </Button>
+                ))}
+              </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+          
+          {/* AI Analysis Section */}
+          <FinancialAnalysisDisplay
+            title="Financial Health Analysis"
+            description="Get AI-powered insights based on your calculated financial ratios."
+            data={financialData}
+            onAnalyze={async () => {
+              if (!hasEnoughDataForAnalysis()) {
+                throw new Error('Please calculate at least 3 financial ratios for a meaningful analysis.');
+              }
+              return analyzeFinancialRatios();
+            }}
+          />
+        </div>
 
         {/* Main Content */}
         <div className="space-y-6">
@@ -607,6 +667,33 @@ const FinancialCalculators = () => {
                 onCalculate={handleCalculation}
               />
             ))}
+          
+          {/* Summary of calculated ratios */}
+          {Object.keys(financialData.ratios).length > 0 && (
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle>Calculated Ratios Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {Object.entries(financialData.ratios).map(([category, ratios]) => (
+                    <div key={category} className="space-y-2">
+                      <h3 className="font-medium text-lg capitalize">{category} Ratios</h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        {Object.entries(ratios).map(([ratioName, value]) => (
+                          <div key={ratioName} className="flex justify-between p-2 bg-slate-50 dark:bg-slate-900 rounded">
+                            <span>{ratioName}</span>
+                            <span className="font-mono">{typeof value === 'number' ? value.toFixed(2) : value}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <Separator className="my-2" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

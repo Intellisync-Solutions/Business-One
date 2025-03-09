@@ -2,10 +2,7 @@ import { Handler } from '@netlify/functions';
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import path from 'path';
-import { generateBreakEvenAnalysisPrompt } from '../../src/utils/prompts/specializedPrompts';
-
-// NOTE: This file is being maintained for backward compatibility with the BreakEvenCalculator component.
-// New components should use analyze-break-even-custom.ts which will eventually replace this function.
+import { generateCashFlowAnalysisPrompt } from '../../src/utils/prompts/specializedPrompts';
 
 // Explicitly load environment variables
 dotenv.config({ 
@@ -25,29 +22,6 @@ if (!openaiApiKey) {
 const openai = new OpenAI({
   apiKey: openaiApiKey
 });
-
-interface BreakEvenData {
-  fixedCosts: number;
-  variableCostPerUnit: number;
-  sellingPricePerUnit: number;
-  mode: 'standard' | 'findPrice' | 'findUnits' | 'profitTarget';
-  targetUnits?: number;
-  targetProfit?: number;
-  targetProfitPercentage?: number;
-  profitInputMode?: 'fixed' | 'percentage';
-}
-
-interface BreakEvenResult {
-  breakEvenUnits?: number;
-  breakEvenPrice?: number;
-  totalRevenueAtBreakEven?: number;
-  contributionMargin?: number;
-  profitMargin?: number;
-  requiredPrice?: number;
-  targetProfitAmount?: number;
-}
-
-// Use the standardized prompt generator from specializedPrompts.ts
 
 // CORS configuration
 const corsHeaders = {
@@ -88,17 +62,45 @@ export const handler: Handler = async (event, context) => {
     const requestBody = JSON.parse(event.body || '{}');
     console.log('Parsed request body:', requestBody);
     
-    const { breakEvenData, breakEvenResult } = requestBody;
+    const { 
+      operatingCashFlow, 
+      investingCashFlow, 
+      financingCashFlow, 
+      netCashFlow, 
+      cashFlowRatio, 
+      previousPeriodData 
+    } = requestBody;
 
     // Validate required data
-    if (!breakEvenData || !breakEvenResult) {
-      console.error('Missing data:', { breakEvenData, breakEvenResult });
+    if (operatingCashFlow === undefined || 
+        investingCashFlow === undefined || 
+        financingCashFlow === undefined || 
+        netCashFlow === undefined || 
+        cashFlowRatio === undefined) {
+      console.error('Missing data:', { 
+        operatingCashFlow, 
+        investingCashFlow, 
+        financingCashFlow, 
+        netCashFlow, 
+        cashFlowRatio 
+      });
       return {
         statusCode: 400,
         headers: corsHeaders,
-        body: JSON.stringify({ error: 'Missing required break-even data' }),
+        body: JSON.stringify({ error: 'Missing required cash flow data' }),
       };
     }
+
+    // Generate the analysis prompt
+    const prompt = generateCashFlowAnalysisPrompt(
+      operatingCashFlow,
+      investingCashFlow,
+      financingCashFlow,
+      netCashFlow,
+      cashFlowRatio,
+      previousPeriodData
+    );
+    console.log('Generated prompt:', prompt);
 
     // Generate the analysis
     const completion = await openai.chat.completions.create({
@@ -106,23 +108,23 @@ export const handler: Handler = async (event, context) => {
       messages: [
         {
           role: "system",
-          content: `You are an experienced financial strategist specializing in break-even analysis. 
+          content: `You are an experienced financial advisor specializing in cash flow analysis. 
           
           Provide your response in TWO DISTINCT SECTIONS with these exact headers:
           
           # Analysis:
-          [Provide a thorough analysis of the break-even calculations, focusing on:
-          - Break-even point interpretation
-          - Financial metrics assessment
-          - Key factors affecting profitability
-          - Current pricing strategy evaluation]
+          [Provide a thorough analysis of the cash flow data, focusing on:
+          - Overall cash flow health assessment
+          - Interpretation of operating, investing, and financing activities
+          - Sustainability assessment of current cash flow patterns
+          - Potential risks based on cash flow trends]
 
           # Recommendations:
           [Provide specific, actionable recommendations, focusing on:
-          - Cost reduction strategies
-          - Revenue optimization tactics
-          - Pricing adjustments
-          - Risk mitigation steps]
+          - Cash flow management improvement strategies
+          - Specific actions to address weaknesses
+          - Opportunities to leverage cash flow strengths
+          - Prioritized next steps for financial management]
 
           IMPORTANT: 
           1. Start each section with the EXACT headers shown above (# Analysis: and # Recommendations:)
@@ -131,7 +133,7 @@ export const handler: Handler = async (event, context) => {
         },
         {
           role: "user",
-          content: generateBreakEvenAnalysisPrompt(breakEvenData, breakEvenResult)
+          content: prompt
         }
       ],
       temperature: 0.7,
@@ -163,36 +165,21 @@ export const handler: Handler = async (event, context) => {
       }
     });
 
-    if (!analysisSection || !recommendationsSection) {
-      console.error('Analysis not properly formatted. Raw content:', analysis);
-      return {
-        statusCode: 500,
-        headers: corsHeaders,
-        body: JSON.stringify({ 
-          error: 'Analysis not properly formatted',
-          rawContent: analysis 
-        }),
-      };
-    }
-
-    // Return successful response with CORS headers
+    // Return the analysis
     return {
       statusCode: 200,
       headers: corsHeaders,
-      body: JSON.stringify({ 
-        analysis: analysisSection, 
-        recommendations: recommendationsSection 
+      body: JSON.stringify({
+        analysis: analysisSection,
+        recommendations: recommendationsSection
       }),
     };
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('Error processing request:', error);
     return {
       statusCode: 500,
       headers: corsHeaders,
-      body: JSON.stringify({ 
-        error: 'Unexpected server error', 
-        details: error instanceof Error ? error.message : 'Unknown error' 
-      }),
+      body: JSON.stringify({ error: 'Error processing request' }),
     };
   }
 };

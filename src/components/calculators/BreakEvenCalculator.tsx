@@ -11,7 +11,11 @@ import { HelpCircle } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DataPersistence } from '@/components/common/DataPersistence'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { AIGeneratedContent } from '@/components/common/AIGeneratedContent'
+
+// NOTE: There is an enhanced version of this component in /src/components/financial/BreakEvenAnalysis.tsx
+// which is designed for the financial analysis page and uses the analyze-break-even-custom.ts Netlify function.
+// This component is maintained for backward compatibility with the existing calculators page.
 
 type CalculationMode = 'standard' | 'findPrice' | 'findUnits' | 'profitTarget'
 
@@ -659,64 +663,15 @@ export function BreakEvenCalculator() {
           </>
         )}
         
-        <Card className="p-6">
-          <Tabs defaultValue="analysis" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="analysis">AI Analysis</TabsTrigger>
-              <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
-            </TabsList>
-            <TabsContent value="analysis" className="mt-4 space-y-4">
-              <div className="text-sm">
-                {isAnalyzing ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                  </div>
-                ) : aiAnalysis ? (
-                  <div className="prose prose-sm max-w-none dark:prose-invert">
-                    <div 
-                      className="whitespace-pre-wrap" 
-                      dangerouslySetInnerHTML={{ 
-                        __html: aiAnalysis.analysis
-                          .replace(/\n/g, '<br/>')
-                          .replace(/### (.*?)\n/g, '<h3 class="font-bold text-lg mt-4 mb-2">$1</h3>')
-                          .replace(/#### (.*?)\n/g, '<h4 class="font-bold text-md mt-3 mb-2">$1</h4>')
-                          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                          .replace(/- /g, '• ')
-                      }} 
-                    />
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground">Calculate your break-even point to see AI analysis.</p>
-                )}
-              </div>
-            </TabsContent>
-            <TabsContent value="recommendations" className="mt-4 space-y-4">
-              <div className="text-sm">
-                {isAnalyzing ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                  </div>
-                ) : aiAnalysis?.recommendations ? (
-                  <div className="prose prose-sm max-w-none dark:prose-invert">
-                    <div 
-                      className="whitespace-pre-wrap" 
-                      dangerouslySetInnerHTML={{ 
-                        __html: aiAnalysis.recommendations
-                          .replace(/\n/g, '<br/>')
-                          .replace(/### (.*?)\n/g, '<h3 class="font-bold text-lg mt-4 mb-2">$1</h3>')
-                          .replace(/#### (.*?)\n/g, '<h4 class="font-bold text-md mt-3 mb-2">$1</h4>')
-                          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                          .replace(/- /g, '• ')
-                      }} 
-                    />
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground">Calculate your break-even point to see AI recommendations.</p>
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
-        </Card>
+        {/* Using the standardized AIGeneratedContent component for consistent formatting */}
+        <AIGeneratedContent
+          title="Break-Even Analysis Insights"
+          description="AI-powered insights based on your break-even calculations"
+          analysis={aiAnalysis?.analysis || ''}
+          recommendations={aiAnalysis?.recommendations || ''}
+          loading={isAnalyzing}
+          error={aiAnalysis === null && !isAnalyzing ? 'Failed to generate analysis. Please try again.' : undefined}
+        />
       </div>
     </div>
   )

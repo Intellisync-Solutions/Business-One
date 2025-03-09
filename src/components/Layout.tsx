@@ -5,12 +5,12 @@ import {
   LayoutDashboard, 
   FileText, 
   Calculator, 
-  
   Target,
   PiggyBank,
   LineChart,
   Building,
-  BarChart4
+  BarChart4,
+  BarChartHorizontal
 } from 'lucide-react'
 import { useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
@@ -20,7 +20,7 @@ const Layout = () => {
 
   const menuItems = [
     { 
-      path: '/', 
+      path: '/dashboard', 
       icon: LayoutDashboard, 
       label: 'Dashboard' 
     },
@@ -28,6 +28,11 @@ const Layout = () => {
       path: '/business-plan', 
       icon: FileText, 
       label: 'Business Plan' 
+    },
+    {
+      path: '/financial-analysis',
+      icon: BarChartHorizontal,
+      label: 'Financial Analysis'
     },
     {
       path: '/calculators',
@@ -122,7 +127,7 @@ const Layout = () => {
           transition={{ duration: 0.5 }}
         >
           <div className="p-6">
-            <h1 className="text-xl font-bold text-primary">Intellisync Suite</h1>
+            <h1 className="text-xl font-bold text-primary">IntelliSync Business Suite</h1>
           </div>
           <div className="px-3">
             {menuItems.map(item => renderMenuItem(item))}

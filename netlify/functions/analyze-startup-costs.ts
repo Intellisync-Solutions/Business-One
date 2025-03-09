@@ -39,52 +39,8 @@ interface AnalysisRequest {
   metrics: FinancialMetrics;
 }
 
-const generateAnalysisPrompt = (data: AnalysisRequest): string => {
-  const { costs, metrics } = data;
-  
-  return `As a financial advisor, analyze the following startup cost breakdown and provide strategic insights:
-
-COST BREAKDOWN:
-One-Time Costs:
-- Fixed: $${costs.oneTime.fixed.toLocaleString()}
-- Variable: $${costs.oneTime.variable.toLocaleString()}
-- Total: $${costs.oneTime.total.toLocaleString()}
-
-Monthly Operating Costs:
-- Fixed: $${costs.monthly.fixed.toLocaleString()}
-- Variable: $${costs.monthly.variable.toLocaleString()}
-- Total: $${costs.monthly.total.toLocaleString()}
-
-Inventory Costs:
-- Fixed: $${costs.inventory.fixed.toLocaleString()}
-- Variable: $${costs.inventory.variable.toLocaleString()}
-- Total: $${costs.inventory.total.toLocaleString()}
-
-Key Metrics:
-- Total Startup Cost: $${metrics.totalStartupCost.toLocaleString()}
-- Monthly Operating Cost: $${metrics.monthlyOperatingCost.toLocaleString()}
-- Recommended Cash Reserve (6 months): $${metrics.recommendedCashReserve.toLocaleString()}
-- Total Initial Capital Required: $${metrics.totalInitialCapital.toLocaleString()}
-
-Please provide a concise analysis that includes:
-1. Cost Structure Assessment:
-   - Evaluate the balance between fixed and variable costs
-   - Identify potential risks or advantages in the current cost structure
-   
-2. Financial Health Indicators:
-   - Analyze the sustainability of monthly operating costs
-   - Assess the adequacy of the cash reserve
-   
-3. Strategic Recommendations:
-   - Suggest areas for potential cost optimization
-   - Identify key financial considerations for success
-   
-4. Industry Context:
-   - Compare these metrics to typical startup benchmarks
-   - Highlight any unusual patterns or concerns
-
-Please provide actionable insights that can help in decision-making.`;
-};
+// Import the shared prompt generator
+import { generateStartupAnalysisPrompt } from '../utils/sharedPrompts';
 
 export const handler: Handler = async (event, context) => {
   // Add CORS headers
@@ -166,14 +122,14 @@ export const handler: Handler = async (event, context) => {
           {
             role: "system",
             content: `You are an experienced business financial advisor specializing in startup finances and business planning. 
-            Your role is to provide clear, actionable insights based on startup cost data. 
-            Format your response using markdown with clear section headers and bullet points.
+            Your role is to provide clear, actionable insights based on startup cost data.
             Focus on practical advice, industry benchmarks, and risk assessment.
-            Be concise but thorough, and always maintain a professional, advisory tone.`
+            Be concise but thorough, and always maintain a professional, advisory tone.
+            Follow the formatting instructions provided in the prompt exactly.`
           },
           {
             role: "user",
-            content: generateAnalysisPrompt({ costs, metrics })
+            content: generateStartupAnalysisPrompt({ costs, metrics })
           }
         ],
         temperature: 0.7,

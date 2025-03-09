@@ -4,8 +4,10 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { generateBreakEvenAnalysisPrompt } from '../../src/utils/prompts/specializedPrompts';
 
-// NOTE: This file is being maintained for backward compatibility with the BreakEvenCalculator component.
-// New components should use analyze-break-even-custom.ts which will eventually replace this function.
+// NOTE: This is the preferred implementation for break-even analysis that uses the standardized prompt generator
+// from specializedPrompts.ts. It provides more structured analysis and recommendations aligned with other financial functions.
+// This function is used by the newer BreakEvenAnalysis component in /src/components/financial/
+// The analyze-break-even.ts function is maintained for backward compatibility with older components.
 
 // Explicitly load environment variables
 dotenv.config({ 
@@ -25,29 +27,6 @@ if (!openaiApiKey) {
 const openai = new OpenAI({
   apiKey: openaiApiKey
 });
-
-interface BreakEvenData {
-  fixedCosts: number;
-  variableCostPerUnit: number;
-  sellingPricePerUnit: number;
-  mode: 'standard' | 'findPrice' | 'findUnits' | 'profitTarget';
-  targetUnits?: number;
-  targetProfit?: number;
-  targetProfitPercentage?: number;
-  profitInputMode?: 'fixed' | 'percentage';
-}
-
-interface BreakEvenResult {
-  breakEvenUnits?: number;
-  breakEvenPrice?: number;
-  totalRevenueAtBreakEven?: number;
-  contributionMargin?: number;
-  profitMargin?: number;
-  requiredPrice?: number;
-  targetProfitAmount?: number;
-}
-
-// Use the standardized prompt generator from specializedPrompts.ts
 
 // CORS configuration
 const corsHeaders = {
@@ -99,6 +78,31 @@ export const handler: Handler = async (event, context) => {
         body: JSON.stringify({ error: 'Missing required break-even data' }),
       };
     }
+    
+    // Validate essential fields
+    if (typeof breakEvenData.fixedCosts !== 'number' || 
+        typeof breakEvenData.variableCostPerUnit !== 'number' || 
+        typeof breakEvenData.sellingPricePerUnit !== 'number') {
+      console.error('Invalid break-even data format:', breakEvenData);
+      return {
+        statusCode: 400,
+        headers: corsHeaders,
+        body: JSON.stringify({ error: 'Invalid break-even data format. Required numeric fields: fixedCosts, variableCostPerUnit, sellingPricePerUnit' }),
+      };
+    }
+    
+    // Log the data we're about to process
+    console.log('Processing break-even data:', {
+      productName: breakEvenData.productName,
+      fixedCosts: breakEvenData.fixedCosts,
+      variableCostPerUnit: breakEvenData.variableCostPerUnit,
+      sellingPricePerUnit: breakEvenData.sellingPricePerUnit,
+      mode: breakEvenData.mode
+    });
+
+    // Generate the analysis prompt
+    const prompt = generateBreakEvenAnalysisPrompt(breakEvenData, breakEvenResult);
+    console.log('Generated prompt:', prompt);
 
     // Generate the analysis
     const completion = await openai.chat.completions.create({
@@ -131,7 +135,7 @@ export const handler: Handler = async (event, context) => {
         },
         {
           role: "user",
-          content: generateBreakEvenAnalysisPrompt(breakEvenData, breakEvenResult)
+          content: prompt
         }
       ],
       temperature: 0.7,
@@ -163,36 +167,58 @@ export const handler: Handler = async (event, context) => {
       }
     });
 
+    // Fallback if the expected sections are not found
     if (!analysisSection || !recommendationsSection) {
-      console.error('Analysis not properly formatted. Raw content:', analysis);
-      return {
-        statusCode: 500,
-        headers: corsHeaders,
-        body: JSON.stringify({ 
-          error: 'Analysis not properly formatted',
-          rawContent: analysis 
-        }),
-      };
+      console.log('Could not find expected sections in response. Attempting alternative parsing.');
+      
+      // Try alternative parsing methods
+      const analysisSectionAlt = analysis.match(/# Analysis:([\s\S]*?)(?=# Recommendations:|$)/i);
+      const recommendationsSectionAlt = analysis.match(/# Recommendations:([\s\S]*?)$/i);
+      
+      if (analysisSectionAlt && analysisSectionAlt[1]) {
+        analysisSection = analysisSectionAlt[1].trim();
+      }
+      
+      if (recommendationsSectionAlt && recommendationsSectionAlt[1]) {
+        recommendationsSection = recommendationsSectionAlt[1].trim();
+      }
     }
 
-    // Return successful response with CORS headers
+    // If we still don't have both sections, use a simple split
+    if (!analysisSection || !recommendationsSection) {
+      console.log('Still missing sections. Using simple split method.');
+      const parts = analysis.split('# Recommendations:');
+      if (parts.length >= 2) {
+        if (!analysisSection) analysisSection = parts[0].replace('# Analysis:', '').trim();
+        if (!recommendationsSection) recommendationsSection = parts[1].trim();
+      }
+    }
+
+    // Final fallback - if all parsing methods fail, just return the whole text as analysis
+    if (!analysisSection && !recommendationsSection) {
+      console.log('All parsing methods failed. Using full text as analysis.');
+      analysisSection = analysis;
+      recommendationsSection = 'Please see the analysis section for all information.';
+    }
+
+    console.log('Final analysis length:', analysisSection.length);
+    console.log('Final recommendations length:', recommendationsSection.length);
+
+    // Return the analysis
     return {
       statusCode: 200,
       headers: corsHeaders,
-      body: JSON.stringify({ 
-        analysis: analysisSection, 
-        recommendations: recommendationsSection 
+      body: JSON.stringify({
+        analysis: analysisSection,
+        recommendations: recommendationsSection
       }),
     };
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('Error processing request:', error);
     return {
       statusCode: 500,
       headers: corsHeaders,
-      body: JSON.stringify({ 
-        error: 'Unexpected server error', 
-        details: error instanceof Error ? error.message : 'Unknown error' 
-      }),
+      body: JSON.stringify({ error: 'Error processing request' }),
     };
   }
 };

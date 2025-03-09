@@ -15,6 +15,13 @@ export default defineConfig({
       'X-Content-Type-Options': 'nosniff',
       'Referrer-Policy': 'strict-origin-when-cross-origin',
     },
+    proxy: {
+      '/.netlify/functions': {
+        target: 'http://localhost:9000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   build: {
     chunkSizeWarningLimit: 1000,

@@ -7,6 +7,11 @@ import { validateForm, commonValidations, ValidationConfig } from "@/utils/valid
 import { DataPersistence } from '@/components/common/DataPersistence'
 import { useCalculatorData } from '@/hooks/useCalculatorData'
 
+// NOTE: There is an enhanced version of this component in /src/components/financial/BusinessValuationAnalysis.tsx
+// which is designed for the financial analysis page and uses the analyze-business-valuation Netlify function
+// to generate AI-powered analysis and recommendations. This component performs calculations locally
+// without making API calls and is maintained for backward compatibility with the existing calculators page.
+
 interface FinancialMetrics {
   revenue: number;
   netIncome: number;

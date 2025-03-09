@@ -47,11 +47,25 @@ interface Scenario {
   probability: number;
 }
 
+interface ScenarioAdjustments {
+  optimisticMultiplier: number; // e.g., 1.2 means 20% increase for optimistic
+  pessimisticMultiplier: number; // e.g., 0.8 means 20% decrease for pessimistic
+}
+
 interface ScenarioData {
   scenarios: {
     base: Scenario;
     optimistic: Scenario;
     pessimistic: Scenario;
+  };
+  adjustments: {
+    revenue: ScenarioAdjustments;
+    costs: ScenarioAdjustments;
+    marketShare: ScenarioAdjustments;
+    customerGrowth: ScenarioAdjustments;
+    baselineClients: ScenarioAdjustments;
+    operatingExpenses: ScenarioAdjustments;
+    profitMargin: ScenarioAdjustments;
   };
   activeTab: string;
   metrics: {
@@ -122,6 +136,16 @@ const initialPessimisticScenario: Scenario = {
   probability: 15
 }
 
+const initialAdjustments = {
+  revenue: { optimisticMultiplier: 1.2, pessimisticMultiplier: 0.8 },
+  costs: { optimisticMultiplier: 0.9, pessimisticMultiplier: 1.15 },
+  marketShare: { optimisticMultiplier: 1.25, pessimisticMultiplier: 0.75 },
+  customerGrowth: { optimisticMultiplier: 1.3, pessimisticMultiplier: 0.7 },
+  baselineClients: { optimisticMultiplier: 1, pessimisticMultiplier: 1 }, // Typically unchanged
+  operatingExpenses: { optimisticMultiplier: 0.95, pessimisticMultiplier: 1.1 },
+  profitMargin: { optimisticMultiplier: 1.25, pessimisticMultiplier: 0.7 }
+}
+
 export function ScenarioPlannerCalculator() {
   const [scenarioData, setScenarioData] = useState<ScenarioData>({
     scenarios: {
@@ -129,6 +153,7 @@ export function ScenarioPlannerCalculator() {
       optimistic: initialOptimisticScenario,
       pessimistic: initialPessimisticScenario
     },
+    adjustments: initialAdjustments,
     activeTab: 'base',
     metrics: {
       expectedRevenue: 0,
@@ -151,6 +176,8 @@ export function ScenarioPlannerCalculator() {
   ) => {
     setScenarioData((prev) => {
       const updatedScenarios = { ...prev.scenarios }
+      
+      // Always update the current scenario
       updatedScenarios[type] = {
         ...updatedScenarios[type],
         metrics: {
@@ -158,10 +185,33 @@ export function ScenarioPlannerCalculator() {
           [field]: value
         }
       }
+      
+      // Auto-adjust other scenarios only when the base case is updated
+      if (type === 'base' && field in prev.adjustments) {
+        // Update optimistic scenario based on base value and optimistic multiplier
+        const optimisticValue = value * prev.adjustments[field as keyof typeof prev.adjustments].optimisticMultiplier
+        updatedScenarios.optimistic = {
+          ...updatedScenarios.optimistic,
+          metrics: {
+            ...updatedScenarios.optimistic.metrics,
+            [field]: optimisticValue
+          }
+        }
+        
+        // Update pessimistic scenario based on base value and pessimistic multiplier
+        const pessimisticValue = value * prev.adjustments[field as keyof typeof prev.adjustments].pessimisticMultiplier
+        updatedScenarios.pessimistic = {
+          ...updatedScenarios.pessimistic,
+          metrics: {
+            ...updatedScenarios.pessimistic.metrics,
+            [field]: pessimisticValue
+          }
+        }
+      }
+      
       return { 
         ...prev, 
-        scenarios: updatedScenarios,
-        [type]: updatedScenarios[type]
+        scenarios: updatedScenarios
       }
     })
   }
@@ -170,20 +220,25 @@ export function ScenarioPlannerCalculator() {
     type: 'base' | 'optimistic' | 'pessimistic',
     value: number
   ) => {
-    setScenarioData((prev) => ({
-      ...prev,
-      scenarios: {
-        ...prev.scenarios,
-        [type]: {
-          ...prev.scenarios[type],
-          probability: value
+    setScenarioData((prev) => {
+      // Calculate total probability across all scenarios excluding current one
+      const otherScenarioTypes = ['base', 'optimistic', 'pessimistic'].filter(t => t !== type) as Array<'base' | 'optimistic' | 'pessimistic'>
+      const otherProbabilitiesTotal = otherScenarioTypes.reduce((sum, t) => sum + prev.scenarios[t].probability, 0)
+      
+      // Ensure the new value doesn't make total exceed 100%
+      const adjustedValue = Math.min(value, 100 - otherProbabilitiesTotal)
+      
+      return {
+        ...prev,
+        scenarios: {
+          ...prev.scenarios,
+          [type]: {
+            ...prev.scenarios[type],
+            probability: adjustedValue
+          }
         }
-      },
-      [type]: {
-        ...prev.scenarios[type],
-        probability: value
       }
-    }))
+    })
   }
 
   const handleTabChange = (value: string) => {
@@ -191,6 +246,59 @@ export function ScenarioPlannerCalculator() {
       ...prev,
       activeTab: value
     }))
+  }
+  
+  const updateAdjustment = (
+    field: keyof ScenarioData['adjustments'],
+    scenarioType: 'optimistic' | 'pessimistic',
+    value: number
+  ) => {
+    setScenarioData((prev) => {
+      const updatedAdjustments = { ...prev.adjustments }
+      
+      // Update the specific adjustment multiplier
+      updatedAdjustments[field] = {
+        ...updatedAdjustments[field],
+        [scenarioType === 'optimistic' ? 'optimisticMultiplier' : 'pessimisticMultiplier']: value
+      }
+      
+      // Apply the new adjustment to recalculate the scenario metrics
+      const baseMetric = prev.scenarios.base.metrics[field as keyof ScenarioMetrics]
+      
+      // Only update if there's a valid base value
+      if (typeof baseMetric === 'number' && !isNaN(baseMetric)) {
+        const updatedScenarios = { ...prev.scenarios }
+        
+        if (scenarioType === 'optimistic') {
+          updatedScenarios.optimistic = {
+            ...updatedScenarios.optimistic,
+            metrics: {
+              ...updatedScenarios.optimistic.metrics,
+              [field]: baseMetric * value
+            }
+          }
+        } else { // pessimistic
+          updatedScenarios.pessimistic = {
+            ...updatedScenarios.pessimistic,
+            metrics: {
+              ...updatedScenarios.pessimistic.metrics,
+              [field]: baseMetric * value
+            }
+          }
+        }
+        
+        return {
+          ...prev,
+          adjustments: updatedAdjustments,
+          scenarios: updatedScenarios
+        }
+      }
+      
+      return {
+        ...prev,
+        adjustments: updatedAdjustments
+      }
+    })
   }
 
   const calculateMetrics = () => {
@@ -338,7 +446,9 @@ export function ScenarioPlannerCalculator() {
               scenarioData.scenarios.optimistic,
               'optimistic',
               updateMetrics,
-              updateProbability
+              updateProbability,
+              scenarioData.adjustments,
+              updateAdjustment
             )}
           </TabsContent>
           <TabsContent value="pessimistic">
@@ -346,7 +456,9 @@ export function ScenarioPlannerCalculator() {
               scenarioData.scenarios.pessimistic,
               'pessimistic',
               updateMetrics,
-              updateProbability
+              updateProbability,
+              scenarioData.adjustments,
+              updateAdjustment
             )}
           </TabsContent>
         </Tabs>
@@ -566,86 +678,97 @@ function renderScenarioInputs(
   scenario: Scenario, 
   scenarioType: 'base' | 'optimistic' | 'pessimistic',
   updateMetrics: (type: 'base' | 'optimistic' | 'pessimistic', field: keyof ScenarioMetrics, value: number) => void,
-  updateProbability: (type: 'base' | 'optimistic' | 'pessimistic', value: number) => void
+  updateProbability: (type: 'base' | 'optimistic' | 'pessimistic', value: number) => void,
+  adjustments?: ScenarioData['adjustments'],
+  updateAdjustment?: (field: keyof ScenarioData['adjustments'], scenarioType: 'optimistic' | 'pessimistic', value: number) => void
 ) {
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <TooltipProvider delayDuration={0}>
-            <UITooltip>
-              <TooltipTrigger asChild>
-                <Label htmlFor="baselineClients">Baseline Clients <AlertCircle className="inline-block w-4 h-4" /></Label>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                Number of clients at the start of the business. This could be 0 or an existing client base.
-              </TooltipContent>
-            </UITooltip>
-          </TooltipProvider>
-          <Input
-            id="baselineClients"
-            type="number"
-            min="0"
-            value={scenario.metrics.baselineClients || ''}
-            onChange={e => updateMetrics(scenarioType, 'baselineClients', parseFloat(e.target.value) || 0)}
-          />
+  // Different rendering for base case vs. other scenarios
+  if (scenarioType === 'base') {
+    // Base case gets full input fields
+    return (
+      <div className="space-y-4">
+        <div className="mb-4">
+          <p className="text-sm text-gray-500 italic mb-2">
+            Base case values are used to automatically calculate optimistic and pessimistic scenarios using multipliers.
+          </p>
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <TooltipProvider delayDuration={0}>
+              <UITooltip>
+                <TooltipTrigger asChild>
+                  <Label htmlFor="baselineClients">Baseline Clients <AlertCircle className="inline-block w-4 h-4" /></Label>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Number of clients at the start of the business. This could be 0 or an existing client base.
+                </TooltipContent>
+              </UITooltip>
+            </TooltipProvider>
+            <Input
+              id="baselineClients"
+              type="number"
+              min="0"
+              value={scenario.metrics.baselineClients || ''}
+              onChange={e => updateMetrics(scenarioType, 'baselineClients', parseFloat(e.target.value) || 0)}
+            />
+          </div>
 
-        <div>
-          <TooltipProvider delayDuration={0}>
-            <UITooltip>
-              <TooltipTrigger asChild>
-                <Label htmlFor="revenue">Revenue ($) <AlertCircle className="inline-block w-4 h-4" /></Label>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                Total expected annual income generated from sales of products or services before expenses are deducted.
-              </TooltipContent>
-            </UITooltip>
-          </TooltipProvider>
-          <Input
-            id="revenue"
-            type="number"
-            value={scenario.metrics.revenue || ''}
-            onChange={e => updateMetrics(scenarioType, 'revenue', parseFloat(e.target.value) || 0)}
-          />
-        </div>
+          <div>
+            <TooltipProvider delayDuration={0}>
+              <UITooltip>
+                <TooltipTrigger asChild>
+                  <Label htmlFor="revenue">Revenue ($) <AlertCircle className="inline-block w-4 h-4" /></Label>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Total expected annual income generated from sales of products or services before expenses are deducted.
+                </TooltipContent>
+              </UITooltip>
+            </TooltipProvider>
+            <Input
+              id="revenue"
+              type="number"
+              value={scenario.metrics.revenue || ''}
+              onChange={e => updateMetrics(scenarioType, 'revenue', parseFloat(e.target.value) || 0)}
+            />
+          </div>
 
-        <div>
-          <TooltipProvider delayDuration={0}>
-            <UITooltip>
-              <TooltipTrigger asChild>
-                <Label htmlFor="costs">Direct Costs ($) <AlertCircle className="inline-block w-4 h-4" /></Label>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                Total of all expected expenses directly tied to producing goods or services, such as raw materials and direct labor.
-              </TooltipContent>
-            </UITooltip>
-          </TooltipProvider>
-          <Input
-            id="costs"
-            type="number"
-            value={scenario.metrics.costs || ''}
-            onChange={e => updateMetrics(scenarioType, 'costs', parseFloat(e.target.value) || 0)}
-          />
-        </div>
+          <div>
+            <TooltipProvider delayDuration={0}>
+              <UITooltip>
+                <TooltipTrigger asChild>
+                  <Label htmlFor="costs">Direct Costs ($) <AlertCircle className="inline-block w-4 h-4" /></Label>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Total of all expected expenses directly tied to producing goods or services, such as raw materials and direct labor.
+                </TooltipContent>
+              </UITooltip>
+            </TooltipProvider>
+            <Input
+              id="costs"
+              type="number"
+              value={scenario.metrics.costs || ''}
+              onChange={e => updateMetrics(scenarioType, 'costs', parseFloat(e.target.value) || 0)}
+            />
+          </div>
 
-        <div>
-          <TooltipProvider delayDuration={0}>
-            <UITooltip>
-              <TooltipTrigger asChild>
-                <Label htmlFor="marketShare">Market Share (%) <AlertCircle className="inline-block w-4 h-4" /></Label>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                Percentage of total market sales captured by your business in a specific market segment.
-              </TooltipContent>
-            </UITooltip>
-          </TooltipProvider>
-          <Input
-            id="marketShare"
-            type="number"
-            value={scenario.metrics.marketShare || ''}
-            onChange={e => updateMetrics(scenarioType, 'marketShare', parseFloat(e.target.value) || 0)}
-          />
+          <div>
+            <TooltipProvider delayDuration={0}>
+              <UITooltip>
+                <TooltipTrigger asChild>
+                  <Label htmlFor="marketShare">Market Share (%) <AlertCircle className="inline-block w-4 h-4" /></Label>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Percentage of total market sales captured by your business in a specific market segment.
+                </TooltipContent>
+              </UITooltip>
+            </TooltipProvider>
+            <Input
+              id="marketShare"
+              type="number"
+              value={scenario.metrics.marketShare || ''}
+              onChange={e => updateMetrics(scenarioType, 'marketShare', parseFloat(e.target.value) || 0)}
+            />
+          </div>
         </div>
 
         <div>
@@ -724,6 +847,125 @@ function renderScenarioInputs(
           />
         </div>
       </div>
-    </div>
-  )
+    );
+  } else {
+    // Optimistic and Pessimistic scenarios show read-only values with adjustment controls
+    return (
+      <div className="space-y-4">
+        <div className="mb-4">
+          <p className="text-sm text-gray-500 italic mb-2">
+            {scenarioType === 'optimistic' ? 
+              'Optimistic scenario values are automatically calculated from the base case using multipliers.' : 
+              'Pessimistic scenario values are automatically calculated from the base case using multipliers.'}
+          </p>
+        </div>
+        
+        {/* Display the current metrics as read-only with their multipliers */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {adjustments && updateAdjustment && ['revenue', 'costs', 'marketShare', 'customerGrowth', 'operatingExpenses', 'profitMargin'].map((field) => (
+            <div key={field} className="border p-3 rounded-md">
+              <div className="flex justify-between items-center mb-2">
+                <TooltipProvider delayDuration={0}>
+                  <UITooltip>
+                    <TooltipTrigger asChild>
+                      <Label className="capitalize flex items-center">
+                        {field} 
+                        <AlertCircle className="ml-2 w-4 h-4 text-gray-500" />
+                      </Label>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs">
+                      {(() => {
+                        const multiplierType = scenarioType === 'optimistic' ? 'optimisticMultiplier' : 'pessimisticMultiplier';
+                        const multiplierValue = adjustments[field as keyof typeof adjustments][multiplierType];
+                        const scenarioDescription = scenarioType === 'optimistic' 
+                          ? 'a more favorable outcome' 
+                          : 'a more challenging scenario';
+                        
+                        const tooltipMap: Record<string, string> = {
+                          revenue: `Represents the potential change in total income. A multiplier above 1 indicates ${scenarioDescription} with increased revenue.`,
+                          costs: `Reflects potential variations in direct expenses. ${scenarioType === 'optimistic' ? 'Lower costs' : 'Higher costs'} impact overall profitability.`,
+                          marketShare: `Indicates the projected change in market penetration. ${scenarioType === 'optimistic' ? 'Increased' : 'Decreased'} market share reflects business performance.`,
+                          customerGrowth: `Shows the expected rate of customer acquisition. ${scenarioType === 'optimistic' ? 'Accelerated' : 'Slowed'} growth impacts long-term potential.`,
+                          operatingExpenses: `Represents ongoing business expenses. ${scenarioType === 'optimistic' ? 'Reduced' : 'Increased'} expenses affect operational efficiency.`,
+                          profitMargin: `Reflects the percentage of revenue retained as profit. ${scenarioType === 'optimistic' ? 'Higher' : 'Lower'} margins indicate financial health.`
+                        };
+
+                        return `Current Multiplier: ${multiplierValue.toFixed(2)}x\n\n${tooltipMap[field] || 'Metric adjustment for this scenario.'}\n\nAdjust the multiplier to fine-tune the scenario's projection.`;
+                      })()}
+                    </TooltipContent>
+                  </UITooltip>
+                </TooltipProvider>
+                <span className="text-sm font-medium">
+                  {scenario.metrics[field as keyof ScenarioMetrics]?.toFixed(2) || '0.00'}
+                </span>
+              </div>
+              
+              <div className="mt-2">
+                <TooltipProvider delayDuration={0}>
+                  <UITooltip>
+                    <TooltipTrigger asChild>
+                      <Label className="text-xs text-gray-500 flex items-center">
+                        Multiplier 
+                        <AlertCircle className="ml-2 w-3 h-3 text-gray-400" />
+                      </Label>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs">
+                      Multipliers allow you to adjust scenario metrics dynamically:
+                      <ul className="list-disc list-inside mt-2">
+                        <li>Values between 0.1 and 5 are allowed</li>
+                        <li>1.0 represents the base case scenario</li>
+                        <li>{'>'} 1.0 increases the metric value</li>
+                        <li>{'<'} 1.0 decreases the metric value</li>
+                      </ul>
+                      Experiment to model different business scenarios.
+                    </TooltipContent>
+                  </UITooltip>
+                </TooltipProvider>
+                <Input 
+                  type="number" 
+                  step="0.05"
+                  min="0.1" 
+                  max="5"
+                  value={adjustments[field as keyof typeof adjustments][scenarioType === 'optimistic' ? 'optimisticMultiplier' : 'pessimisticMultiplier']}
+                  onChange={(e) => updateAdjustment(
+                    field as keyof ScenarioData['adjustments'], 
+                    scenarioType as 'optimistic' | 'pessimistic', 
+                    parseFloat(e.target.value) || 1
+                  )}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        <div>
+          <TooltipProvider delayDuration={0}>
+            <UITooltip>
+              <TooltipTrigger asChild>
+                <Label htmlFor="probability" className="flex items-center">
+                  Probability (%) 
+                  <AlertCircle className="ml-2 w-4 h-4 text-gray-500" />
+                </Label>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs">
+                <p>Represents the estimated likelihood of this scenario occurring.</p>
+                <ul className="list-disc list-inside mt-2">
+                  <li>Total probability across all scenarios must not exceed 100%</li>
+                  <li>Use this to weight the potential impact of different scenarios</li>
+                  <li>More realistic scenarios typically have higher probabilities</li>
+                </ul>
+                Adjust carefully to maintain a balanced scenario analysis.
+              </TooltipContent>
+            </UITooltip>
+          </TooltipProvider>
+          <Input
+            id="probability"
+            type="number"
+            value={scenario.probability || ''}
+            onChange={e => updateProbability(scenarioType, parseFloat(e.target.value) || 0)}
+          />
+        </div>
+      </div>
+    );
+  }
 }

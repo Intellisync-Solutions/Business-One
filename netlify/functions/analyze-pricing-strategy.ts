@@ -66,68 +66,8 @@ interface BreakEvenAnalysis {
   max: number;
 }
 
-// Generate a comprehensive pricing strategy prompt
-const generatePricingStrategyPrompt = (
-  breakEvenAnalysis: BreakEvenAnalysis, 
-  scenarios: PricingScenario[], 
-  costStructure: CostStructure, 
-  marketData: MarketData
-): string => {
-  // Format currency helper
-  const formatCurrency = (value: number) => `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-  // Find the optimal scenario
-  const optimalScenario = scenarios.find(scenario => scenario.meetsTargetProfit) || scenarios[0];
-
-  return `Provide a comprehensive pricing strategy analysis based on the following financial data:
-
-COST STRUCTURE:
-- Fixed Costs: ${formatCurrency(costStructure.fixedCosts)}
-- Variable Cost per Unit: ${formatCurrency(costStructure.variableCostPerUnit)}
-- Target Profit Percentage: ${costStructure.targetProfitPercentage}%
-
-MARKET DATA:
-- Market Size: ${marketData.marketSize.toLocaleString()} units
-- Competitor Price: ${formatCurrency(marketData.competitorPrice)}
-- Price Elasticity: ${marketData.priceElasticity}
-
-BREAK-EVEN ANALYSIS:
-- Break-Even Point: ${formatCurrency(breakEvenAnalysis.point)}
-- Optimal Price: ${formatCurrency(breakEvenAnalysis.optimalPrice)}
-- Price Range: ${formatCurrency(breakEvenAnalysis.optimalPriceRange.min)} - ${formatCurrency(breakEvenAnalysis.optimalPriceRange.max)}
-- Market Sensitivity: ${breakEvenAnalysis.marketSensitivity}
-
-OPTIMAL PRICING SCENARIO:
-- Price: ${formatCurrency(optimalScenario.price)}
-- Volume: ${optimalScenario.volume.toLocaleString()} units
-- Revenue: ${formatCurrency(optimalScenario.revenue)}
-- Profit: ${formatCurrency(optimalScenario.profit)}
-- Profit Margin: ${optimalScenario.profitMargin.toFixed(2)}%
-
-Please provide a strategic analysis that includes:
-
-1. Pricing Strategy Evaluation:
-   - Analyze the optimal pricing approach
-   - Assess the impact of price elasticity
-   - Evaluate the feasibility of the recommended pricing
-
-2. Market Positioning Recommendations:
-   - Strategies for competitive pricing
-   - Potential market penetration tactics
-   - Pricing differentiation approaches
-
-3. Financial Impact Assessment:
-   - Projected financial outcomes
-   - Risk analysis of different pricing scenarios
-   - Strategies to mitigate pricing risks
-
-4. Actionable Insights:
-   - Specific recommendations for pricing implementation
-   - Suggestions for ongoing price optimization
-   - Monitoring and adjustment strategies
-
-Provide a detailed, actionable analysis that helps make informed pricing decisions.`;
-}
+// Import the shared prompt generator
+import { generatePricingStrategyPrompt } from '../utils/sharedPrompts';
 
 export const handler: Handler = async (event, context) => {
   // Handle CORS preflight requests
@@ -184,24 +124,15 @@ export const handler: Handler = async (event, context) => {
           role: "system",
           content: `You are an expert pricing strategy consultant specializing in financial analysis and market positioning.
           
-          Provide your response in TWO DISTINCT SECTIONS with these exact headers:
+          Your role is to provide clear, actionable insights based on pricing strategy data.
+          Focus on practical advice, market positioning, and risk assessment.
+          Be concise but thorough, and always maintain a professional, advisory tone.
           
-          # Analysis:
-          [Provide a comprehensive analysis of the pricing strategy, focusing on:
-          - Pricing approach evaluation
-          - Market positioning insights
-          - Financial performance assessment
-          - Competitive landscape analysis]
-
-          # Recommendations:
-          [Provide specific, actionable recommendations, focusing on:
-          - Optimal pricing strategies
-          - Market penetration tactics
-          - Risk mitigation
-          - Continuous improvement approaches]
-
+          Provide your response in the exact format specified in the prompt, using proper markdown
+          formatting with clear section headers, bullet points, and numbered lists as appropriate.
+          
           IMPORTANT: 
-          1. Start each section with the EXACT headers shown above (# Analysis: and # Recommendations:)
+          1. Start each section with the EXACT headers shown in the format instructions
           2. Keep sections clearly separated
           3. Use markdown formatting (###, ####, **, -) for structure`
         },
