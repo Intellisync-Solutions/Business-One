@@ -119,18 +119,24 @@ const SECTION_PROMPTS: Record<string, (content: string, context?: any) => string
   `,
 
   financialHighlights: (content, context) => `
-    Improve financial highlights and projections:
-    Current Highlights: "${content}"
+    Enhance and structure the following financial highlights and projections for a business plan:
+    Current Financial Highlights: "${content}"
 
     Context:
     Business Name: ${context?.businessName || 'Not Provided'}
     Business Objectives: ${context?.objectives || 'Not Provided'}
+    Products/Services: ${context?.productsServices || 'Not Provided'}
+    Market Opportunity: ${context?.marketOpportunity || 'Not Provided'}
 
     Instructions:
-    - Provide a clear financial narrative
-    - Include revenue projections
-    - Highlight key financial metrics
-    - Demonstrate financial viability and growth potential
+    - Create a comprehensive financial narrative with clear structure
+    - Include 3-year revenue and profit projections with realistic growth rates
+    - Highlight key financial metrics (ROI, profit margins, break-even point)
+    - Include startup costs and funding requirements if applicable
+    - Demonstrate financial viability and growth potential with specific numbers
+    - Format the response in clear markdown with bullet points for key metrics
+    - Use tables for projections if appropriate
+    - Keep the response concise but comprehensive (300-500 words)
   `,
 
   businessOverview: (content, context) => `
@@ -209,33 +215,49 @@ const SECTION_PROMPTS: Record<string, (content: string, context?: any) => string
   `,
 
   competitiveAnalysis: (content, context) => `
-    Improve competitive analysis:
+    Enhance and structure the competitive analysis section for a business plan:
     Current Analysis: "${content}"
 
     Context:
     Business Name: ${context?.businessName || 'Not Provided'}
     Products/Services: ${context?.productsServices || 'Not Provided'}
+    Target Market: ${context?.targetMarket || 'Not Provided'}
+    Industry Overview: ${context?.industryOverview || 'Not Provided'}
+    Market Size: ${context?.marketSize || 'Not Provided'}
 
     Instructions:
-    - Identify key competitors
-    - Analyze strengths and weaknesses
-    - Highlight your competitive advantages
-    - Use a structured comparison framework
+    - Identify 3-5 key direct and indirect competitors in the market
+    - Analyze strengths, weaknesses, opportunities, and threats (SWOT) for each major competitor
+    - Create a comparative analysis showing how your business differs from competitors
+    - Highlight your specific competitive advantages and unique selling proposition
+    - Explain your strategy for gaining market share against established competitors
+    - Identify any barriers to entry that protect your business from new competitors
+    - Format the response in clear markdown with section headings and bullet points
+    - Use a comparison table if appropriate to show competitive positioning
+    - Keep the response concise but comprehensive (300-500 words)
   `,
 
   regulations: (content, context) => `
-    Enhance regulatory environment analysis:
+    Enhance and structure the regulatory environment analysis for a business plan:
     Current Analysis: "${content}"
 
     Context:
     Business Name: ${context?.businessName || 'Not Provided'}
     Industry: ${context?.industryOverview || 'Not Provided'}
+    Products/Services: ${context?.productsServices || 'Not Provided'}
+    Target Market: ${context?.targetMarket || 'Not Provided'}
+    Business Overview: ${context?.businessOverview || 'Not Provided'}
 
     Instructions:
-    - Provide comprehensive regulatory overview
-    - Explain compliance requirements
-    - Highlight potential legal challenges
-    - Demonstrate proactive risk management
+    - Identify key regulations, laws, and policies affecting the business in its industry
+    - Explain specific compliance requirements and licensing needed to operate legally
+    - Analyze potential regulatory challenges and how they might impact operations
+    - Outline a proactive regulatory compliance strategy and risk management approach
+    - Identify any upcoming regulatory changes that could affect the business
+    - Explain how regulatory compliance can be leveraged as a competitive advantage
+    - Format the response in clear markdown with section headings and bullet points
+    - Include a brief compliance timeline or checklist if appropriate
+    - Keep the response concise but comprehensive (300-500 words)
   `,
 
   fullBusinessPlan: (content: string, context: any) => {
@@ -455,17 +477,50 @@ const handler: Handler = async (event, context) => {
       }
 
       try {
+        // Log the section being processed for debugging
+        console.log(`Processing remix request for section: ${section}`);
+        console.log(`Context keys available:`, Object.keys(context));
+        
+        // Ensure the section exists in our prompts
+        if (!SECTION_PROMPTS[section as RemixSection]) {
+          console.error(`Section prompt not found for: ${section}`);
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ 
+              error: 'Invalid section',
+              details: `Section prompt not found for: ${section}`
+            })
+          };
+        }
+        
+        // Generate the prompt for this section
         const prompt = SECTION_PROMPTS[section as RemixSection](
           content, 
           context
         );
+        
+        // Log the generated prompt for debugging
+        console.log(`Generated prompt for ${section}:`, prompt.substring(0, 100) + '...');
 
+        // Use GPT-4o-mini as specified in user preferences
         const response = await openai.chat.completions.create({
           model: "gpt-4o-mini",
           messages: [
             {
               role: "system", 
-              content: "You are a professional business plan writer. Enhance and refine the given section with clarity and precision."
+              content: `You are a professional business plan writer. Enhance and refine the given section with clarity and precision.
+
+Format your response using standardized markdown:
+- Use ## for section headings
+- Use ### for subsections
+- Use bullet points for lists of key points
+- Use numbered lists for sequential steps or priorities
+- Use **bold** for emphasis on important concepts
+- Use tables for structured data where appropriate
+- Ensure proper spacing between sections for readability
+
+Your response should be well-structured, professional, and ready for inclusion in a formal business plan document.`
             },
             {
               role: "user", 
@@ -476,7 +531,16 @@ const handler: Handler = async (event, context) => {
           temperature: 0.7
         });
 
+        // Extract the remixed content
         const remixedContent = response.choices[0].message.content || '';
+        
+        // Log success for debugging
+        console.log(`Successfully remixed ${section}, content length: ${remixedContent.length}`);
+        
+        // Log a sample of the remixed content
+        if (remixedContent.length > 0) {
+          console.log(`Sample of remixed content: ${remixedContent.substring(0, 100)}...`);
+        }
 
         return {
           statusCode: 200,

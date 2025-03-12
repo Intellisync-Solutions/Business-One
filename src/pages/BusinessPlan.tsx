@@ -152,6 +152,58 @@ const SECTIONS = {
   }
 }
 
+// Helper function to extract sections from a business plan markdown text
+const extractSectionsFromBusinessPlan = (businessPlan: string): Record<string, string> | null => {
+  try {
+    const result: Record<string, string> = {};
+    let currentSection = '';
+    let currentContent: string[] = [];
+
+    // Try to parse as markdown with headers
+    businessPlan.split('\n').forEach(line => {
+      // Check for markdown headings (## Heading)
+      const headerMatch = line.match(/^(#{1,3})\s+(.+)$/);
+      
+      if (headerMatch && headerMatch[1].length <= 3) {
+        // Save previous section if exists
+        if (currentSection && currentContent.length > 0) {
+          result[currentSection] = currentContent.join('\n');
+          currentContent = [];
+        }
+        currentSection = headerMatch[2].trim();
+      } else if (currentSection) {
+        currentContent.push(line);
+      }
+    });
+
+    // Add the last section
+    if (currentSection && currentContent.length > 0) {
+      result[currentSection] = currentContent.join('\n');
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Error parsing business plan sections:', error);
+    return null;
+  }
+};
+
+// Map section titles to form data fields
+const sectionToFieldMap: Record<string, { section: string, field: string }> = {
+  'Mission Statement': { section: 'executive', field: 'missionStatement' },
+  'Business Objectives': { section: 'executive', field: 'objectives' },
+  'Products and Services': { section: 'executive', field: 'productsServices' },
+  'Market Opportunity': { section: 'executive', field: 'marketOpportunity' },
+  'Financial Highlights': { section: 'executive', field: 'financialHighlights' },
+  'Business Overview': { section: 'company', field: 'businessOverview' },
+  'Vision Statement': { section: 'company', field: 'visionStatement' },
+  'Industry Overview': { section: 'market', field: 'industryOverview' },
+  'Target Market': { section: 'market', field: 'targetMarket' },
+  'Market Size': { section: 'market', field: 'marketSize' },
+  'Competitive Analysis': { section: 'market', field: 'competitiveAnalysis' },
+  'Regulatory Environment': { section: 'market', field: 'regulations' }
+};
+
 const BusinessPlan = () => {
   const [activeTab, setActiveTab] = useState('executive')
   const [formData, setFormData] = useState<Record<string, Record<string, string>>>({
@@ -163,6 +215,36 @@ const BusinessPlan = () => {
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const { toast } = useToast()
+  
+  // Helper function to update form data with extracted sections
+  const updateFormDataWithExtractedSections = (sections: Record<string, string>) => {
+    // Create a copy of the current form data
+    const updatedFormData = { ...formData };
+    
+    // Iterate through extracted sections and update form data if they match our expected fields
+    Object.entries(sections).forEach(([sectionTitle, content]) => {
+      // Check if this section title maps to one of our form fields
+      const exactMatch = sectionToFieldMap[sectionTitle];
+      
+      if (exactMatch) {
+        // Direct match found, update the form data
+        updatedFormData[exactMatch.section][exactMatch.field] = content;
+      } else {
+        // Try a fuzzy match by checking if the section title contains any of our known fields
+        for (const [knownTitle, mapping] of Object.entries(sectionToFieldMap)) {
+          if (sectionTitle.toLowerCase().includes(knownTitle.toLowerCase()) || 
+              knownTitle.toLowerCase().includes(sectionTitle.toLowerCase())) {
+            updatedFormData[mapping.section][mapping.field] = content;
+            break;
+          }
+        }
+      }
+    });
+    
+    // Update the form data state
+    setFormData(updatedFormData);
+    console.log('Updated form data with extracted sections:', updatedFormData);
+  }
 
   const handleFieldChange = (section: string, field: string, value: string) => {
     setFormData(prev => ({
@@ -206,14 +288,14 @@ const BusinessPlan = () => {
       return
     }
 
-    // Combine all sections into a single context
+    // Combine all sections into a single context, ensuring we use the remixed content
     const fullContext = {
       ...formData.executive,
       ...formData.company,
       ...formData.market
     }
 
-    // Ensure all values are strings
+    // Ensure all values are strings and log the data we're using
     Object.keys(fullContext).forEach(key => {
       if (fullContext[key] === undefined || fullContext[key] === null) {
         delete fullContext[key];
@@ -221,6 +303,9 @@ const BusinessPlan = () => {
         fullContext[key] = String(fullContext[key]);
       }
     });
+    
+    // Log the data we're using for the business plan
+    console.log('Using remixed content for business plan generation:', fullContext);
 
     setIsGeneratingPlan(true)
 
@@ -258,7 +343,21 @@ const BusinessPlan = () => {
           ? JSON.stringify(businessPlan, null, 2) 
           : String(businessPlan);
 
-        setGeneratedBusinessPlan(planText)
+        // Store the generated business plan
+        setGeneratedBusinessPlan(planText);
+        
+        // Also update the form data with any remixed content that might be in the business plan
+        // This ensures we're using the latest remixed content for future operations
+        try {
+          const planSections = extractSectionsFromBusinessPlan(planText);
+          if (planSections) {
+            // Update formData with extracted sections if they match our expected fields
+            updateFormDataWithExtractedSections(planSections);
+          }
+        } catch (error) {
+          console.error('Error extracting sections from business plan:', error);
+        }
+        
         setIsDialogOpen(true)
         
         toast({

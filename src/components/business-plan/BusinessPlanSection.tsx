@@ -56,6 +56,18 @@ export function BusinessPlanSection({
   const [isRemixing, setIsRemixing] = useState<Record<string, boolean>>({})
   const { toast } = useToast()
 
+  // Map field names to ensure consistency with backend
+  const mapFieldToSection = (field: string): string => {
+    // This mapping ensures frontend field names match exactly with backend section names
+    const fieldMapping: Record<string, string> = {
+      'competitiveAnalysis': 'competitiveAnalysis',
+      'regulations': 'regulations',
+      // Add other mappings if needed
+    };
+    
+    return fieldMapping[field] || field;
+  };
+
   const handleRemix = async (field: string) => {
     // Ensure the field is in the remix sections
     if (!REMIX_SECTIONS.includes(field)) {
@@ -65,24 +77,40 @@ export function BusinessPlanSection({
 
     // Start remixing for this specific field
     setIsRemixing(prev => ({ ...prev, [field]: true }))
+    
+    // Map the field to the correct section name for the backend
+    const sectionName = mapFieldToSection(field);
+    
+    // Enhanced debugging - log the field being remixed
+    console.log(`Attempting to remix field: ${field} (section: ${sectionName})`)
 
     try {
+      // Prepare the context data with all relevant fields
+      const contextData = {
+        businessName: businessName,
+        // Include all relevant context from values for comprehensive remixing
+        ...Object.fromEntries(
+          Object.entries(values).filter(([key]) => 
+            ['missionStatement', 'objectives', 'productsServices', 'marketOpportunity', 'financialHighlights', 'competitiveAnalysis', 'targetMarket', 'industryOverview', 'marketSize', 'regulations', 'businessOverview', 'visionStatement'].includes(key)
+          )
+        )
+      }
+      
+      // Log the request payload for debugging
+      console.log('Remix request payload:', {
+        section: sectionName,
+        content: values[field] || '',
+        contextKeys: Object.keys(contextData)
+      })
+
       const response = await axios.post(
         process.env.NODE_ENV === 'development' 
           ? 'http://localhost:9000/.netlify/functions/generate-business-plan'
           : '/.netlify/functions/generate-business-plan', 
         {
-          section: field,
+          section: sectionName, // Use the mapped section name for consistency
           content: values[field] || '',
-          context: {
-            businessName: businessName,
-            // Include other relevant context from values
-            ...Object.fromEntries(
-              Object.entries(values).filter(([key]) => 
-                ['missionStatement', 'objectives', 'productsServices', 'marketOpportunity'].includes(key)
-              )
-            )
-          }
+          context: contextData
         }, {
           headers: {
             'Content-Type': 'application/json'

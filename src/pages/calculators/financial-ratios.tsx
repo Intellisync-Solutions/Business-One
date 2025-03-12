@@ -590,7 +590,14 @@ const FinancialCalculators = () => {
       });
       
       if (!response.ok) {
-        throw new Error(`Error: ${response.status} ${response.statusText}`);
+        // Try to parse the error response for more details
+        try {
+          const errorData = await response.json();
+          throw new Error(errorData.details || `Error: ${response.status} ${response.statusText}`);
+        } catch (parseError) {
+          // If we can't parse the error response, use the status text
+          throw new Error(`Error: ${response.status} ${response.statusText}`);
+        }
       }
       
       const data = await response.json();
