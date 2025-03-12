@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { AlertCircle } from "lucide-react"
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   BarChart,
   Bar,
@@ -18,13 +20,6 @@ import {
   Pie,
   Cell
 } from 'recharts'
-import { 
-  Tooltip as UITooltip, 
-  TooltipContent, 
-  TooltipProvider, 
-  TooltipTrigger 
-} from "@/components/ui/tooltip"
-import { AlertCircle } from "lucide-react"
 import { DataPersistence } from '@/components/common/DataPersistence'
 
 interface ScenarioMetrics {
@@ -146,7 +141,11 @@ const initialAdjustments = {
   profitMargin: { optimisticMultiplier: 1.25, pessimisticMultiplier: 0.7 }
 }
 
-export function ScenarioPlannerCalculator() {
+interface ScenarioPlannerCalculatorProps {
+  onDataChange?: (data: ScenarioData) => void;
+}
+
+export function ScenarioPlannerCalculator({ onDataChange }: ScenarioPlannerCalculatorProps = {}) {
   const [scenarioData, setScenarioData] = useState<ScenarioData>({
     scenarios: {
       base: initialBaseScenario,
@@ -168,6 +167,86 @@ export function ScenarioPlannerCalculator() {
       }
     }
   })
+  
+  // Calculate expected metrics based on probabilities and scenario values
+  const calculateExpectedMetrics = (currentData: ScenarioData) => {
+    const { base, optimistic, pessimistic } = currentData.scenarios;
+    
+    // Calculate probability weights (normalized to sum to 1)
+    const totalProbability = base.probability + optimistic.probability + pessimistic.probability;
+    const baseWeight = base.probability / totalProbability;
+    const optimisticWeight = optimistic.probability / totalProbability;
+    const pessimisticWeight = pessimistic.probability / totalProbability;
+    
+    // Calculate expected revenue (weighted average)
+    const expectedRevenue = 
+      baseWeight * base.metrics.revenue + 
+      optimisticWeight * optimistic.metrics.revenue + 
+      pessimisticWeight * pessimistic.metrics.revenue;
+    
+    // Calculate expected profit (weighted average)
+    const baseProfit = base.metrics.revenue - base.metrics.costs - base.metrics.operatingExpenses;
+    const optimisticProfit = optimistic.metrics.revenue - optimistic.metrics.costs - optimistic.metrics.operatingExpenses;
+    const pessimisticProfit = pessimistic.metrics.revenue - pessimistic.metrics.costs - pessimistic.metrics.operatingExpenses;
+    
+    const expectedProfit = 
+      baseWeight * baseProfit + 
+      optimisticWeight * optimisticProfit + 
+      pessimisticWeight * pessimisticProfit;
+    
+    // Calculate market share range
+    const marketShareValues = [
+      base.metrics.marketShare,
+      optimistic.metrics.marketShare,
+      pessimistic.metrics.marketShare
+    ];
+    
+    // Calculate customer growth range
+    const customerGrowthValues = [
+      base.metrics.customerGrowth,
+      optimistic.metrics.customerGrowth,
+      pessimistic.metrics.customerGrowth
+    ];
+    
+    return {
+      expectedRevenue: Math.round(expectedRevenue * 100) / 100,
+      expectedProfit: Math.round(expectedProfit * 100) / 100,
+      marketShareRange: {
+        min: Math.min(...marketShareValues),
+        max: Math.max(...marketShareValues)
+      },
+      customerGrowthRange: {
+        min: Math.min(...customerGrowthValues),
+        max: Math.max(...customerGrowthValues)
+      }
+    };
+  };
+
+  // Update expected metrics whenever scenario data changes
+  useEffect(() => {
+    setScenarioData(prevData => {
+      const updatedMetrics = calculateExpectedMetrics(prevData);
+      return {
+        ...prevData,
+        metrics: updatedMetrics
+      };
+    });
+  }, [
+    scenarioData.scenarios.base.metrics,
+    scenarioData.scenarios.base.probability,
+    scenarioData.scenarios.optimistic.metrics,
+    scenarioData.scenarios.optimistic.probability,
+    scenarioData.scenarios.pessimistic.metrics,
+    scenarioData.scenarios.pessimistic.probability
+  ]);
+  
+  // Call onDataChange whenever scenarioData changes
+  useEffect(() => {
+    console.log('ScenarioPlannerCalculator: Data changed, calling onDataChange with:', scenarioData);
+    if (onDataChange) {
+      onDataChange(scenarioData);
+    }
+  }, [scenarioData, onDataChange]);
 
   const updateMetrics = (
     type: 'base' | 'optimistic' | 'pessimistic', 
@@ -669,6 +748,16 @@ export function ScenarioPlannerCalculator() {
             </PieChart>
           </ResponsiveContainer>
         </Card>
+      </div>
+      
+      {/* Debugging output - hidden */}
+      <div className="hidden">
+        <pre>{JSON.stringify({
+          baseRevenue: scenarioData.scenarios.base.metrics.revenue,
+          optimisticRevenue: scenarioData.scenarios.optimistic.metrics.revenue,
+          pessimisticRevenue: scenarioData.scenarios.pessimistic.metrics.revenue,
+          metrics: metrics
+        }, null, 2)}</pre>
       </div>
     </div>
   )

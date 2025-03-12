@@ -39,8 +39,8 @@ interface AnalysisRequest {
   metrics: FinancialMetrics;
 }
 
-// Import the shared prompt generator
-import { generateStartupAnalysisPrompt } from '../utils/sharedPrompts';
+// Import the enhanced prompt generator
+import { generateEnhancedStartupAnalysisPrompt } from '../../src/utils/prompts/enhancedPromptManager';
 
 export const handler: Handler = async (event, context) => {
   // Add CORS headers
@@ -79,7 +79,7 @@ export const handler: Handler = async (event, context) => {
       };
     }
 
-    const { costs, metrics } = requestBody;
+    const { costs, metrics } = requestBody as AnalysisRequest;
 
     // Validate required data with more detailed logging
     if (!costs) {
@@ -129,7 +129,7 @@ export const handler: Handler = async (event, context) => {
           },
           {
             role: "user",
-            content: generateStartupAnalysisPrompt({ costs, metrics })
+            content: generateEnhancedStartupAnalysisPrompt({ costs, metrics })
           }
         ],
         temperature: 0.7,

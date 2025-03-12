@@ -2,7 +2,7 @@ import { Handler } from '@netlify/functions';
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import path from 'path';
-import { generateFinancialHealthAnalysisPrompt } from '../../src/utils/prompts/promptManager';
+import { generateEnhancedFinancialHealthAnalysisPrompt } from '../../src/utils/prompts/enhancedPromptManager';
 
 // Explicitly load environment variables from multiple possible locations
 try {
@@ -123,8 +123,8 @@ export const handler: Handler = async (event, context) => {
       };
     }
 
-    // Generate the analysis prompt
-    const prompt = generateFinancialHealthAnalysisPrompt(ratiosByCategory, calculatedRatios);
+    // Generate the analysis prompt using enhanced prompt system
+    const prompt = generateEnhancedFinancialHealthAnalysisPrompt(ratiosByCategory, calculatedRatios);
     console.log('Generated prompt length:', prompt.length);
 
     // Generate the analysis

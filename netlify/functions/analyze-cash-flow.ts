@@ -2,7 +2,7 @@ import { Handler } from '@netlify/functions';
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import path from 'path';
-import { generateCashFlowAnalysisPrompt } from '../../src/utils/prompts/specializedPrompts';
+import { generateEnhancedCashFlowAnalysisPrompt } from '../../src/utils/prompts/enhancedPromptManager';
 
 // Explicitly load environment variables
 dotenv.config({ 
@@ -91,8 +91,8 @@ export const handler: Handler = async (event, context) => {
       };
     }
 
-    // Generate the analysis prompt
-    const prompt = generateCashFlowAnalysisPrompt(
+    // Generate the analysis prompt using enhanced prompt system
+    const prompt = generateEnhancedCashFlowAnalysisPrompt(
       operatingCashFlow,
       investingCashFlow,
       financingCashFlow,
@@ -104,7 +104,7 @@ export const handler: Handler = async (event, context) => {
 
     // Generate the analysis
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",

@@ -2,7 +2,7 @@ import { Handler } from '@netlify/functions';
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import path from 'path';
-import { generateBreakEvenAnalysisPrompt } from '../../src/utils/prompts/specializedPrompts';
+import { generateEnhancedBreakEvenAnalysisPrompt } from '../../src/utils/prompts/enhancedPromptManager';
 
 // NOTE: This is the preferred implementation for break-even analysis that uses the standardized prompt generator
 // from specializedPrompts.ts. It provides more structured analysis and recommendations aligned with other financial functions.
@@ -100,13 +100,13 @@ export const handler: Handler = async (event, context) => {
       mode: breakEvenData.mode
     });
 
-    // Generate the analysis prompt
-    const prompt = generateBreakEvenAnalysisPrompt(breakEvenData, breakEvenResult);
+    // Generate the analysis prompt using enhanced prompt system
+    const prompt = generateEnhancedBreakEvenAnalysisPrompt(breakEvenData, breakEvenResult);
     console.log('Generated prompt:', prompt);
 
     // Generate the analysis
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",

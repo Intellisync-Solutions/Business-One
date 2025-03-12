@@ -1,6 +1,6 @@
-
-// Import base context and format instructions from promptManager
+// Import base context, format instructions, and currency formatter
 import { baseFinancialContext, formatInstructions } from './promptManager';
+import { formatCurrency } from '../currency';
 
 /**
  * Generates a prompt for cash flow analysis
@@ -18,15 +18,26 @@ export const generateCashFlowAnalysisPrompt = (
     netCashFlow: number;
   }
 ): string => {
-  const formatCurrency = (value: number) => `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // Using centralized formatCurrency from currency utility
+  
+  /**
+   * Safely calculates percentage change, handling zero and negative values appropriately
+   */
+  const calculatePercentageChange = (current: number, previous: number): number => {
+    // Handle division by zero
+    if (previous === 0) {
+      return current > 0 ? 100 : current < 0 ? -100 : 0;
+    }
+    return ((current - previous) / Math.abs(previous)) * 100;
+  };
   
   // Calculate period-over-period changes if previous data is available
   let periodComparison = '';
   if (previousPeriodData) {
-    const operatingChange = ((operatingCashFlow - previousPeriodData.operatingCashFlow) / Math.abs(previousPeriodData.operatingCashFlow)) * 100;
-    const investingChange = ((investingCashFlow - previousPeriodData.investingCashFlow) / Math.abs(previousPeriodData.investingCashFlow)) * 100;
-    const financingChange = ((financingCashFlow - previousPeriodData.financingCashFlow) / Math.abs(previousPeriodData.financingCashFlow)) * 100;
-    const netChange = ((netCashFlow - previousPeriodData.netCashFlow) / Math.abs(previousPeriodData.netCashFlow)) * 100;
+    const operatingChange = calculatePercentageChange(operatingCashFlow, previousPeriodData.operatingCashFlow);
+    const investingChange = calculatePercentageChange(investingCashFlow, previousPeriodData.investingCashFlow);
+    const financingChange = calculatePercentageChange(financingCashFlow, previousPeriodData.financingCashFlow);
+    const netChange = calculatePercentageChange(netCashFlow, previousPeriodData.netCashFlow);
     
     periodComparison = `\nPERIOD-OVER-PERIOD CHANGES:\n- Operating Cash Flow: ${operatingChange.toFixed(2)}%\n- Investing Cash Flow: ${investingChange.toFixed(2)}%\n- Financing Cash Flow: ${financingChange.toFixed(2)}%\n- Net Cash Flow: ${netChange.toFixed(2)}%\n`;
   }
@@ -52,6 +63,57 @@ Please provide:
 
 ${formatInstructions}`;
 };
+
+/**
+ * Calculates the Net Present Value (NPV) for a series of cash flows.
+ * @param initialInvestment The initial investment amount (assumed positive).
+ * @param cashFlows An array of cash flows for each period.
+ * @param discountRate The annual discount rate as a percentage.
+ * @param compoundingFrequency Number of compounding periods per year (default is 1).
+ * @param continuous If true, uses continuous compounding (default is false).
+ * @returns The Net Present Value.
+ */
+function calculateNPV(initialInvestment: number, cashFlows: number[], discountRate: number, compoundingFrequency: number = 1, continuous: boolean = false): number {
+  // Input validation
+  if (initialInvestment < 0) {
+    console.warn('Initial investment should be positive; the function will negate it internally');
+    initialInvestment = Math.abs(initialInvestment);
+  }
+  
+  if (discountRate < 0) {
+    console.warn('Negative discount rate provided, using absolute value');
+    discountRate = Math.abs(discountRate);
+  }
+  
+  if (!Array.isArray(cashFlows) || cashFlows.length === 0) {
+    console.error('Invalid cash flows provided');
+    return -initialInvestment; // Return just the negative initial investment if no valid cash flows
+  }
+  
+  if (compoundingFrequency <= 0) {
+    console.warn('Invalid compounding frequency, defaulting to annual (1)');
+    compoundingFrequency = 1;
+  }
+  
+  let npv = -initialInvestment;
+  const r = discountRate / 100; // Convert percentage to decimal
+  
+  if (continuous) {
+    // Continuous compounding formula: PV = FV * e^(-rt)
+    for (let t = 0; t < cashFlows.length; t++) {
+      npv += cashFlows[t] * Math.exp(-r * (t + 1));
+    }
+  } else {
+    // Discrete compounding formula: PV = FV / (1 + r/m)^(m*t)
+    // Where m is the compounding frequency per period
+    for (let i = 0; i < cashFlows.length; i++) {
+      const periodRate = r / compoundingFrequency;
+      const periods = compoundingFrequency * (i + 1);
+      npv += cashFlows[i] / Math.pow(1 + periodRate, periods);
+    }
+  }
+  return npv;
+}
 
 /**
  * Generates a prompt for business valuation analysis
@@ -83,7 +145,7 @@ export const generateBusinessValuationPrompt = (
     industry = 'the industry'
   } = valuationData;
   
-  const formatCurrency = (value: number) => `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // Using centralized formatCurrency from currency utility
   
   // Calculate some basic valuation metrics
   const revenueMultipleValuation = annualRevenue * industryMultiple;
@@ -143,19 +205,82 @@ export const generateInvestmentAnalysisPrompt = (
     alternativeInvestmentReturn
   } = investmentData;
   
-  const formatCurrency = (value: number) => `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // Using centralized formatCurrency from currency utility
   
   // Calculate NPV (simplified)
-  let npv = -initialInvestment;
-  projectedCashFlows.forEach((cashFlow, index) => {
-    npv += cashFlow / Math.pow(1 + (discountRate / 100), index + 1);
-  });
+  const npv = calculateNPV(initialInvestment, projectedCashFlows, discountRate);
   
-  // Calculate IRR (simplified approximation)
-  // For a proper IRR calculation, we would need to use numerical methods
-  const totalReturn = projectedCashFlows.reduce((sum, cf) => sum + cf, 0);
-  const averageAnnualReturn = totalReturn / projectLifespan;
-  const approximateIRR = (averageAnnualReturn / initialInvestment) * 100;
+  /**
+   * Calculates Internal Rate of Return (IRR) using Newton-Raphson method
+   * @param initialInvestment The initial investment amount (positive)
+   * @param cashFlows Array of cash flows for each period
+   * @param maxIterations Maximum number of iterations for convergence
+   * @param tolerance Acceptable error tolerance
+   * @returns The IRR as a percentage, or NaN if no convergence
+   */
+  function calculateIRR(initialInvestment: number, cashFlows: number[], maxIterations: number = 100, tolerance: number = 0.0001): number {
+    // Input validation
+    if (initialInvestment <= 0) {
+      console.warn('Initial investment should be positive');
+      return NaN;
+    }
+    
+    if (!Array.isArray(cashFlows) || cashFlows.length === 0) {
+      console.error('Invalid cash flows provided');
+      return NaN;
+    }
+    
+    // Initial guess (using simplified approximation)
+    const totalReturn = cashFlows.reduce((sum, cf) => sum + cf, 0);
+    const averageAnnualReturn = totalReturn / cashFlows.length;
+    let guess = (averageAnnualReturn / initialInvestment);
+    
+    // Ensure reasonable starting point
+    if (guess <= -1) guess = 0.1;
+    
+    // Newton-Raphson method
+    for (let i = 0; i < maxIterations; i++) {
+      let npv = -initialInvestment;
+      let derivative = 0;
+      
+      for (let t = 0; t < cashFlows.length; t++) {
+        const discountFactor = Math.pow(1 + guess, -(t + 1));
+        npv += cashFlows[t] * discountFactor;
+        derivative -= (t + 1) * cashFlows[t] * discountFactor / (1 + guess);
+      }
+      
+      // Check if we're close enough to zero
+      if (Math.abs(npv) < tolerance) {
+        return guess * 100; // Convert to percentage
+      }
+      
+      // Avoid division by zero
+      if (Math.abs(derivative) < 1e-10) {
+        return NaN; // Derivative too small, can't continue
+      }
+      
+      // Update guess
+      const newGuess = guess - npv / derivative;
+      
+      // Check for non-convergence or divergence
+      if (newGuess < -1 || !isFinite(newGuess)) {
+        return NaN; // IRR not found or diverging
+      }
+      
+      guess = newGuess;
+    }
+    
+    return NaN; // Did not converge within max iterations
+  }
+  
+  // Calculate IRR using the robust numerical method
+  const irr = calculateIRR(initialInvestment, projectedCashFlows);
+  // Fall back to approximation if numerical method fails
+  const totalCashFlow = projectedCashFlows.reduce((sum, cf) => sum + cf, 0);
+  const averageAnnualReturn = totalCashFlow / projectLifespan;
+  const irrValue = isNaN(irr) ? 
+    (averageAnnualReturn / initialInvestment) * 100 : 
+    irr;
   
   // Calculate payback period (simplified)
   let cumulativeCashFlow = -initialInvestment;
@@ -188,7 +313,7 @@ PROJECTED CASH FLOWS:
 
 INVESTMENT METRICS:
 - Net Present Value (NPV): ${formatCurrency(npv)}
-- Internal Rate of Return (IRR): ${approximateIRR.toFixed(2)}%
+- Internal Rate of Return (IRR): ${irrValue.toFixed(2)}%
 - Payback Period: ${paybackPeriod} years
 
 Please provide:
@@ -204,6 +329,54 @@ ${formatInstructions}`;
 /**
  * Generates a prompt for break-even analysis
  */
+/**
+ * Calculates break-even units
+ * @param fixedCosts Total fixed costs
+ * @param sellingPricePerUnit Selling price per unit
+ * @param variableCostPerUnit Variable cost per unit
+ * @returns The break-even point in units, or Infinity if contribution margin is zero or negative
+ */
+function calculateBreakEvenUnits(fixedCosts: number, sellingPricePerUnit: number, variableCostPerUnit: number): number {
+  const contributionMargin = sellingPricePerUnit - variableCostPerUnit;
+  if (contributionMargin <= 0) {
+    console.warn('Contribution margin is zero or negative, break-even is not possible');
+    return Infinity;
+  }
+  return fixedCosts / contributionMargin;
+}
+
+/**
+ * Calculates units needed to achieve target profit
+ * @param fixedCosts Total fixed costs
+ * @param sellingPricePerUnit Selling price per unit
+ * @param variableCostPerUnit Variable cost per unit
+ * @param targetProfit Target profit amount
+ * @returns The number of units needed to achieve the target profit
+ */
+function calculateProfitTargetUnits(fixedCosts: number, sellingPricePerUnit: number, variableCostPerUnit: number, targetProfit: number): number {
+  const contributionMargin = sellingPricePerUnit - variableCostPerUnit;
+  if (contributionMargin <= 0) {
+    console.warn('Contribution margin is zero or negative, profit target is not possible');
+    return Infinity;
+  }
+  return (fixedCosts + targetProfit) / contributionMargin;
+}
+
+/**
+ * Calculates the required selling price to achieve break-even at a given unit volume
+ * @param fixedCosts Total fixed costs
+ * @param variableCostPerUnit Variable cost per unit
+ * @param targetUnits Target unit volume
+ * @returns The required selling price per unit
+ */
+function calculateRequiredPrice(fixedCosts: number, variableCostPerUnit: number, targetUnits: number): number {
+  if (targetUnits <= 0) {
+    console.warn('Target units must be positive');
+    return Infinity;
+  }
+  return variableCostPerUnit + (fixedCosts / targetUnits);
+}
+
 export const generateBreakEvenAnalysisPrompt = (
   breakEvenData: {
     fixedCosts: number;
@@ -224,27 +397,56 @@ export const generateBreakEvenAnalysisPrompt = (
     targetProfitAmount?: number;
   }
 ): string => {
-  const { 
-    fixedCosts, 
-    variableCostPerUnit, 
-    sellingPricePerUnit, 
+  const {
+    fixedCosts,
+    variableCostPerUnit,
+    sellingPricePerUnit,
     mode,
-    targetProfit
+    targetProfit,
+    targetUnits
   } = breakEvenData;
 
-  const { 
-    breakEvenUnits, 
-    totalRevenueAtBreakEven, 
-    contributionMargin,
-    requiredPrice
+  const {
+    breakEvenUnits: providedBreakEvenUnits,
+    totalRevenueAtBreakEven,
+    contributionMargin: providedContributionMargin,
+    requiredPrice: providedRequiredPrice
   } = breakEvenResult;
   
-  const formatCurrency = (value: number) => `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  // Validate and calculate key metrics to ensure accuracy
+  const actualContributionMargin = sellingPricePerUnit - variableCostPerUnit;
+  
+  // Calculate break-even units for validation
+  const calculatedBreakEvenUnits = calculateBreakEvenUnits(fixedCosts, sellingPricePerUnit, variableCostPerUnit);
+  
+  // Use calculated or provided values based on validation
+  const breakEvenUnits = isFinite(calculatedBreakEvenUnits) ? 
+    calculatedBreakEvenUnits : 
+    providedBreakEvenUnits;
+    
+  const contributionMargin = actualContributionMargin !== 0 ? 
+    actualContributionMargin : 
+    providedContributionMargin;
+  
+  // Calculate required price if in findPrice mode
+  let requiredPrice = providedRequiredPrice;
+  if (mode === 'findPrice' && targetUnits && targetUnits > 0) {
+    requiredPrice = calculateRequiredPrice(fixedCosts, variableCostPerUnit, targetUnits);
+  }
+  
+  // Calculate units for profit target if in profitTarget mode
+  let profitTargetUnits = breakEvenUnits;
+  if (mode === 'profitTarget' && targetProfit && targetProfit > 0) {
+    profitTargetUnits = calculateProfitTargetUnits(fixedCosts, sellingPricePerUnit, variableCostPerUnit, targetProfit);
+  }
+  
+  // Using centralized formatCurrency from currency utility
   
   // Additional context based on mode
   let modeSpecificContext = '';
   if (mode === 'profitTarget' && targetProfit) {
-    modeSpecificContext = `\nPROFIT TARGET ANALYSIS:\n- Target Profit: ${formatCurrency(targetProfit)}\n- Units Required for Target Profit: ${breakEvenUnits ? Math.ceil(breakEvenUnits).toLocaleString() : 'N/A'}\n`;
+    // Use the calculated profit target units for more accurate analysis
+    modeSpecificContext = `\nPROFIT TARGET ANALYSIS:\n- Target Profit: ${formatCurrency(targetProfit)}\n- Units Required for Target Profit: ${profitTargetUnits ? Math.ceil(profitTargetUnits).toLocaleString() : 'N/A'}\n`;
   } else if (mode === 'findPrice' && requiredPrice) {
     modeSpecificContext = `\nPRICE ANALYSIS:\n- Required Price per Unit: ${formatCurrency(requiredPrice)}\n- Current Variable Cost per Unit: ${formatCurrency(variableCostPerUnit)}\n- Contribution Margin at Required Price: ${formatCurrency(requiredPrice - variableCostPerUnit)}\n`;
   }
@@ -280,4 +482,4 @@ IMPORTANT FORMATTING INSTRUCTIONS:
 3. Keep your analysis data-driven and actionable
 
 ${formatInstructions}`;
-};
+}

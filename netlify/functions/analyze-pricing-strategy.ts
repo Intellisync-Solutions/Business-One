@@ -66,8 +66,15 @@ interface BreakEvenAnalysis {
   max: number;
 }
 
-// Import the shared prompt generator
-import { generatePricingStrategyPrompt } from '../utils/sharedPrompts';
+interface PricingStrategyRequest {
+  breakEvenAnalysis: BreakEvenAnalysis;
+  scenarios: PricingScenario[];
+  costStructure: CostStructure;
+  marketData: MarketData;
+}
+
+// Import the enhanced prompt generator
+import { generateEnhancedPricingStrategyPrompt } from '../../src/utils/prompts/enhancedPromptManager';
 
 export const handler: Handler = async (event, context) => {
   // Handle CORS preflight requests
@@ -99,7 +106,7 @@ export const handler: Handler = async (event, context) => {
       scenarios, 
       costStructure, 
       marketData 
-    } = requestBody;
+    } = requestBody as PricingStrategyRequest;
 
     // Validate required data
     if (!breakEvenAnalysis || !scenarios || !costStructure || !marketData) {
@@ -138,7 +145,7 @@ export const handler: Handler = async (event, context) => {
         },
         {
           role: "user",
-          content: generatePricingStrategyPrompt(
+          content: generateEnhancedPricingStrategyPrompt(
             breakEvenAnalysis, 
             scenarios, 
             costStructure, 

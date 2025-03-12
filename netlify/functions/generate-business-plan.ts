@@ -136,7 +136,7 @@ const SECTION_PROMPTS: Record<string, (content: string, context?: any) => string
     - Demonstrate financial viability and growth potential with specific numbers
     - Format the response in clear markdown with bullet points for key metrics
     - Use tables for projections if appropriate
-    - Keep the response concise but comprehensive (300-500 words)
+    - Keep the response concise but comprehensive (1000-1500 words)
   `,
 
   businessOverview: (content, context) => `
@@ -257,7 +257,7 @@ const SECTION_PROMPTS: Record<string, (content: string, context?: any) => string
     - Explain how regulatory compliance can be leveraged as a competitive advantage
     - Format the response in clear markdown with section headings and bullet points
     - Include a brief compliance timeline or checklist if appropriate
-    - Keep the response concise but comprehensive (300-500 words)
+    - Keep the response concise but comprehensive (500-1000 words)
   `,
 
   fullBusinessPlan: (content: string, context: any) => {
@@ -332,7 +332,7 @@ const generateFullBusinessPlan = async (content: string, context: Record<string,
           content: prompt
         }
       ],
-      max_tokens: 2000,
+      max_tokens: 5000,
       temperature: 0.7
     });
 
@@ -527,7 +527,7 @@ Your response should be well-structured, professional, and ready for inclusion i
               content: prompt
             }
           ],
-          max_tokens: 1000,
+          max_tokens: 2000,
           temperature: 0.7
         });
 

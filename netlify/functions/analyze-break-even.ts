@@ -2,7 +2,7 @@ import { Handler } from '@netlify/functions';
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
 import path from 'path';
-import { generateBreakEvenAnalysisPrompt } from '../../src/utils/prompts/specializedPrompts';
+import { generateEnhancedBreakEvenAnalysisPrompt } from '../../src/utils/prompts/enhancedPromptManager';
 
 // NOTE: This file is being maintained for backward compatibility with the BreakEvenCalculator component.
 // New components should use analyze-break-even-custom.ts which will eventually replace this function.
@@ -88,7 +88,7 @@ export const handler: Handler = async (event, context) => {
     const requestBody = JSON.parse(event.body || '{}');
     console.log('Parsed request body:', requestBody);
     
-    const { breakEvenData, breakEvenResult } = requestBody;
+    const { breakEvenData, breakEvenResult } = requestBody as { breakEvenData: BreakEvenData, breakEvenResult: BreakEvenResult };
 
     // Validate required data
     if (!breakEvenData || !breakEvenResult) {
@@ -102,13 +102,13 @@ export const handler: Handler = async (event, context) => {
 
     // Generate the analysis
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
           content: `You are an experienced financial strategist specializing in break-even analysis. 
           
-          Provide your response in TWO DISTINCT SECTIONS with these exact headers:
+          Provide your response in EXACTLY TWO SECTIONS with these EXACT headers:
           
           # Analysis:
           [Provide a thorough analysis of the break-even calculations, focusing on:
@@ -124,14 +124,16 @@ export const handler: Handler = async (event, context) => {
           - Pricing adjustments
           - Risk mitigation steps]
 
-          IMPORTANT: 
-          1. Start each section with the EXACT headers shown above (# Analysis: and # Recommendations:)
-          2. Keep sections clearly separated
-          3. Use markdown formatting (###, ####, **, -) for structure`
+          CRITICAL INSTRUCTIONS: 
+          1. You MUST start each section with the EXACT headers shown above: '# Analysis:' and '# Recommendations:' (including the # symbol and colon)
+          2. Do NOT add any other main headers with # symbols
+          3. Do NOT modify these headers in any way
+          4. Keep sections clearly separated
+          5. Use markdown formatting (###, ####, **, -) for structure within each section`
         },
         {
           role: "user",
-          content: generateBreakEvenAnalysisPrompt(breakEvenData, breakEvenResult)
+          content: generateEnhancedBreakEvenAnalysisPrompt(breakEvenData, breakEvenResult)
         }
       ],
       temperature: 0.7,
